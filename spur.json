@@ -1,0 +1,20 @@
+{
+  "name": "hrms",
+  "version": "1.0.0",
+  "description": "Hrms support for Spur projects",
+  "go_package": "y",
+  "private": true,
+  "status": "alpha",
+  "requires": ["http", "db"],
+  "required_env": [],
+  "optional_env": [],
+  "has_sqlc": true,
+  "config_struct": "HrmsConfig",
+  "config_env_prefix": "HRMS_",
+  "app_field": "Hrms *hrms.Module",
+  "wire_code": {
+    "import": "hrms \"y\"",
+    "init": "hrmsModule, err := hrms.New(ctx, hrms.Options{DB: dbPool, Log: log, Cfg: cfg.Hrms, MigrationRunner: infra.Migrations.Run})\nif err != nil { return nil, fmt.Errorf(\"hrms: %w\", err) }\nidentityModule.Services.ModuleService.RegisterManifest(ctx, domain.Manifest{Name: \"Hrms\", Code: \"hrms\"})",
+    "routes": "hrmsModule.RegisterRoutes(r)"
+  }
+}
