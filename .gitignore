@@ -1,7 +1,23 @@
 # Binaries
+bin/
+build/
+dist/
+out/
 *.exe
 *.test
+*.out
+coverage.out
+*.coverprofile
+coverage/
 vendor/
+.gocache/
+.gomodcache/
+
+# Local runtime
+tmp/
+*.log
+.env
+.env.*
 
 # Keys
 *.pem

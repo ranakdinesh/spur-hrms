@@ -2,19 +2,20 @@
   "name": "hrms",
   "version": "1.0.0",
   "description": "Hrms support for Spur projects",
-  "go_package": "y",
+  "go_package": "github.com/ranakdinesh/spur-hrms",
   "private": true,
   "status": "alpha",
-  "requires": ["http", "db"],
+  "requires": ["http", "db", "identity"],
   "required_env": [],
   "optional_env": [],
   "has_sqlc": true,
   "config_struct": "HrmsConfig",
   "config_env_prefix": "HRMS_",
   "app_field": "Hrms *hrms.Module",
+  "manifest_source": "pkg/permissions",
   "wire_code": {
-    "import": "hrms \"y\"",
-    "init": "hrmsModule, err := hrms.New(ctx, hrms.Options{DB: dbPool, Log: log, Cfg: cfg.Hrms, MigrationRunner: infra.Migrations.Run})\nif err != nil { return nil, fmt.Errorf(\"hrms: %w\", err) }\nidentityModule.Services.ModuleService.RegisterManifest(ctx, domain.Manifest{Name: \"Hrms\", Code: \"hrms\"})",
+    "import": "hrms \"github.com/ranakdinesh/spur-hrms\"",
+    "init": "hrmsModule, err := hrms.New(ctx, hrms.Options{DB: dbPool, Log: log, Cfg: cfg.Hrms, MigrationRunner: infra.Migrations.Run})\nif err != nil { return nil, fmt.Errorf(\"hrms: %w\", err) }\nif err := identityModule.Services.ModuleService.RegisterManifest(ctx, hrmsModule.Manifest); err != nil { return nil, fmt.Errorf(\"hrms manifest: %w\", err) }",
     "routes": "hrmsModule.RegisterRoutes(r)"
   }
 }

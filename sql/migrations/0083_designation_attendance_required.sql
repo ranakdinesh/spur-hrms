@@ -1,0 +1,2 @@
+ALTER TABLE hrms.designations
+ADD COLUMN IF NOT EXISTS attendance_required BOOLEAN NOT NULL DEFAULT TRUE;

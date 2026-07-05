@@ -12,7 +12,7 @@ spur add module hrms
 
 Or manually:
 ```bash
-go get y@latest
+go get github.com/ranakdinesh/spur-hrms@latest
 ```
 
 ---
@@ -20,7 +20,7 @@ go get y@latest
 ## Wire into app.go
 
 ```go
-import hrms "y"
+import hrms "github.com/ranakdinesh/spur-hrms"
 
 hrmsModule, err := hrms.New(ctx, hrms.Options{
     DB:              dbPool,
@@ -30,6 +30,9 @@ hrmsModule, err := hrms.New(ctx, hrms.Options{
 })
 if err != nil {
     return nil, fmt.Errorf("hrms: %w", err)
+}
+if err := identityModule.Services.ModuleService.RegisterManifest(ctx, hrmsModule.Manifest); err != nil {
+    return nil, fmt.Errorf("hrms manifest: %w", err)
 }
 hrmsModule.RegisterRoutes(r)
 ```
