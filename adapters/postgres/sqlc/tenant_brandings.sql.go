@@ -26,13 +26,13 @@ SELECT
     COALESCE(b.card_layout, 'bordered')::text AS card_layout,
     COALESCE(b.theme_color, '#588368')::text AS theme_color,
     COALESCE(b.primary_color, '#588368')::text AS primary_color,
-    COALESCE(b.secondary_color, '#2f6f7d')::text AS secondary_color,
-    COALESCE(b.tertiary_color, '#e87839')::text AS tertiary_color,
-    COALESCE(b.topbar_color, '#ffffff')::text AS topbar_color,
-    COALESCE(b.sidebar_color, '#111827')::text AS sidebar_color,
+    COALESCE(b.secondary_color, '#e87839')::text AS secondary_color,
+    COALESCE(b.tertiary_color, '#f2b36d')::text AS tertiary_color,
+    COALESCE(b.topbar_color, '#fffaf4')::text AS topbar_color,
+    COALESCE(b.sidebar_color, '#426b53')::text AS sidebar_color,
     COALESCE(b.topbar_background, 'none')::text AS topbar_background,
     COALESCE(b.sidebar_background, 'solid')::text AS sidebar_background,
-    COALESCE(b.font_family, 'Inter, sans-serif')::text AS font_family,
+    COALESCE(b.font_family, '"Plus Jakarta Sans", "Segoe UI", sans-serif')::text AS font_family,
     COALESCE(b.preloader, true)::boolean AS preloader
 FROM hrms.tenant_profiles p
 LEFT JOIN hrms.tenant_brandings b ON b.tenant_id = p.tenant_id AND NOT b.inactive
@@ -104,13 +104,13 @@ SELECT
     COALESCE(b.card_layout, 'bordered')::text AS card_layout,
     COALESCE(b.theme_color, '#588368')::text AS theme_color,
     COALESCE(b.primary_color, '#588368')::text AS primary_color,
-    COALESCE(b.secondary_color, '#2f6f7d')::text AS secondary_color,
-    COALESCE(b.tertiary_color, '#e87839')::text AS tertiary_color,
-    COALESCE(b.topbar_color, '#ffffff')::text AS topbar_color,
-    COALESCE(b.sidebar_color, '#111827')::text AS sidebar_color,
+    COALESCE(b.secondary_color, '#e87839')::text AS secondary_color,
+    COALESCE(b.tertiary_color, '#f2b36d')::text AS tertiary_color,
+    COALESCE(b.topbar_color, '#fffaf4')::text AS topbar_color,
+    COALESCE(b.sidebar_color, '#426b53')::text AS sidebar_color,
     COALESCE(b.topbar_background, 'none')::text AS topbar_background,
     COALESCE(b.sidebar_background, 'solid')::text AS sidebar_background,
-    COALESCE(b.font_family, 'Inter, sans-serif')::text AS font_family,
+    COALESCE(b.font_family, '"Plus Jakarta Sans", "Segoe UI", sans-serif')::text AS font_family,
     COALESCE(b.preloader, true)::boolean AS preloader
 FROM hrms.tenant_profiles p
 LEFT JOIN hrms.tenant_brandings b ON b.tenant_id = p.tenant_id AND NOT b.inactive
