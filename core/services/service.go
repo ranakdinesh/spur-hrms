@@ -57,6 +57,7 @@ type TenantService struct {
 	attendancePolicies           ports.AttendancePolicyRepo
 	attendanceRosters            ports.AttendanceRosterRepo
 	attendanceRequests           ports.AttendanceRequestRepo
+	overtimeRequests             ports.OvertimeRequestRepo
 	attendanceExceptionWorkflows ports.AttendanceExceptionWorkflowRepo
 	attendanceLocations          ports.AttendanceLocationRepo
 	attendanceDevices            ports.AttendanceDeviceRepo
@@ -174,6 +175,7 @@ func NewTenantService(repo interface {
 	ports.AttendancePolicyRepo
 	ports.AttendanceRosterRepo
 	ports.AttendanceRequestRepo
+	ports.OvertimeRequestRepo
 	ports.AttendanceExceptionWorkflowRepo
 	ports.AttendanceLocationRepo
 	ports.AttendanceDeviceRepo
@@ -213,7 +215,7 @@ func NewTenantService(repo interface {
 	ports.CandidateOnboardingRepo
 	ports.SystemRunner
 }, log *zerolog.Logger, opts ...TenantServiceOption) *TenantService {
-	svc := &TenantService{profiles: repo, settings: repo, branding: repo, branches: repo, departments: repo, designations: repo, designationMasters: repo, workerTypes: repo, workerProfiles: repo, engagements: repo, workLogs: repo, projects: repo, compliance: repo, skills: repo, skillGaps: repo, learning: repo, compensationReview: repo, successionPlanning: repo, assetAccess: repo, talentMarketplace: repo, okrs: repo, performance: repo, wellbeing: repo, agreements: repo, workingHours: repo, financialYears: repo, holidays: repo, policyEngine: repo, leaveTypes: repo, leavePolicies: repo, leaveTemplates: repo, leaveBalances: repo, leaveRequests: repo, compOffRequests: repo, approvalWorkflows: repo, lookups: repo, policies: repo, subscriptionPlans: repo, subscriptions: repo, employees: repo, employeeCredentialEvents: repo, employeeExits: repo, employeeDocuments: repo, attendances: repo, attendancePolicies: repo, attendanceRosters: repo, attendanceRequests: repo, attendanceExceptionWorkflows: repo, attendanceLocations: repo, attendanceDevices: repo, shiftScheduling: repo, payCycles: repo, salaryTemplates: repo, employeeSalaries: repo, salarySlips: repo, payrollOperations: repo, payGroups: repo, flexPayroll: repo, reporting: repo, insights: repo, aiActions: repo, peopleAnalytics: repo, privacyEcosystem: repo, operationsWorkbench: repo, workflowTasks: repo, tenantOperations: repo, benefitsClaims: repo, employeeRelations: repo, hrCases: repo, celebrations: repo, scheduledJobs: repo, notifications: repo, emailProviders: repo, communicationProviders: repo, storageProviders: repo, pushProviders: repo, jobPositions: repo, jobRequisitions: repo, jobPostings: repo, candidates: repo, offerLetters: repo, employeeLetters: repo, onboardingWorkflows: repo, candidateOnboardings: repo, system: repo, log: logging.Component(log, "service")}
+	svc := &TenantService{profiles: repo, settings: repo, branding: repo, branches: repo, departments: repo, designations: repo, designationMasters: repo, workerTypes: repo, workerProfiles: repo, engagements: repo, workLogs: repo, projects: repo, compliance: repo, skills: repo, skillGaps: repo, learning: repo, compensationReview: repo, successionPlanning: repo, assetAccess: repo, talentMarketplace: repo, okrs: repo, performance: repo, wellbeing: repo, agreements: repo, workingHours: repo, financialYears: repo, holidays: repo, policyEngine: repo, leaveTypes: repo, leavePolicies: repo, leaveTemplates: repo, leaveBalances: repo, leaveRequests: repo, compOffRequests: repo, approvalWorkflows: repo, lookups: repo, policies: repo, subscriptionPlans: repo, subscriptions: repo, employees: repo, employeeCredentialEvents: repo, employeeExits: repo, employeeDocuments: repo, attendances: repo, attendancePolicies: repo, attendanceRosters: repo, attendanceRequests: repo, overtimeRequests: repo, attendanceExceptionWorkflows: repo, attendanceLocations: repo, attendanceDevices: repo, shiftScheduling: repo, payCycles: repo, salaryTemplates: repo, employeeSalaries: repo, salarySlips: repo, payrollOperations: repo, payGroups: repo, flexPayroll: repo, reporting: repo, insights: repo, aiActions: repo, peopleAnalytics: repo, privacyEcosystem: repo, operationsWorkbench: repo, workflowTasks: repo, tenantOperations: repo, benefitsClaims: repo, employeeRelations: repo, hrCases: repo, celebrations: repo, scheduledJobs: repo, notifications: repo, emailProviders: repo, communicationProviders: repo, storageProviders: repo, pushProviders: repo, jobPositions: repo, jobRequisitions: repo, jobPostings: repo, candidates: repo, offerLetters: repo, employeeLetters: repo, onboardingWorkflows: repo, candidateOnboardings: repo, system: repo, log: logging.Component(log, "service")}
 	for _, opt := range opts {
 		if opt != nil {
 			opt(svc)

@@ -26,6 +26,9 @@ type selfServiceTenantService struct {
 	createCompOffCalled    bool
 	listCompOffCalled      bool
 	reviewCompOffCalled    bool
+	createOvertimeCalled   bool
+	listOvertimeCalled     bool
+	reviewOvertimeCalled   bool
 	gotUserID              uuid.UUID
 	gotApproverID          uuid.UUID
 	gotAttendanceUserID    *uuid.UUID
@@ -94,6 +97,23 @@ func (s *selfServiceTenantService) ListCompOffRequestsByUser(ctx context.Context
 func (s *selfServiceTenantService) ReviewCompOffRequest(ctx context.Context, cmd ports.CompOffReviewCommand) (*domain.CompOffRequest, error) {
 	s.reviewCompOffCalled = true
 	return &domain.CompOffRequest{ID: cmd.RequestID, TenantID: cmd.TenantID, Status: cmd.Status}, nil
+}
+
+func (s *selfServiceTenantService) CreateOvertimeRequest(ctx context.Context, cmd ports.OvertimeRequestCommand) (*domain.OvertimeRequest, error) {
+	s.createOvertimeCalled = true
+	s.gotUserID = cmd.UserID
+	return &domain.OvertimeRequest{ID: uuid.New(), TenantID: cmd.TenantID, UserID: cmd.UserID, Status: domain.OvertimeStatusPending, RequestedMinutes: cmd.RequestedMinutes}, nil
+}
+
+func (s *selfServiceTenantService) ListOvertimeRequestsByUser(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID) ([]*domain.OvertimeRequest, error) {
+	s.listOvertimeCalled = true
+	s.gotUserID = userID
+	return []*domain.OvertimeRequest{}, nil
+}
+
+func (s *selfServiceTenantService) ReviewOvertimeRequest(ctx context.Context, cmd ports.OvertimeReviewCommand) (*domain.OvertimeRequest, error) {
+	s.reviewOvertimeCalled = true
+	return &domain.OvertimeRequest{ID: cmd.RequestID, TenantID: cmd.TenantID, Status: cmd.Status}, nil
 }
 
 func TestEmployeeCannotListOtherUserLeaves(t *testing.T) {
@@ -459,5 +479,110 @@ func TestEmployeeCannotApproveCompOffRequest(t *testing.T) {
 	}
 	if svc.reviewCompOffCalled {
 		t.Fatal("service should not be called for employee comp-off approval")
+	}
+}
+
+func TestEmployeeCanCreateOwnOvertimeRequest(t *testing.T) {
+	tenantID := uuid.New()
+	actorID := uuid.New()
+	svc := &selfServiceTenantService{}
+	handler := New(
+		svc,
+		func(context.Context) string { return tenantID.String() },
+		func(context.Context) uuid.UUID { return actorID },
+		func(context.Context) bool { return false },
+		nil,
+	)
+	body := []byte(`{"work_date":"2026-07-08","requested_minutes":120,"reason":"Release support"}`)
+	request := httptest.NewRequest(http.MethodPost, "/hrms/overtime-requests", bytes.NewReader(body))
+	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.AttendanceSelfOvertimeRequest}))
+	recorder := httptest.NewRecorder()
+
+	handler.CreateOvertimeRequest(recorder, request)
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusCreated, recorder.Body.String())
+	}
+	if !svc.createOvertimeCalled || svc.gotUserID != actorID {
+		t.Fatalf("overtime user = %s called=%t, want actor %s", svc.gotUserID, svc.createOvertimeCalled, actorID)
+	}
+}
+
+func TestEmployeeCannotCreateOtherUserOvertimeRequest(t *testing.T) {
+	tenantID := uuid.New()
+	actorID := uuid.New()
+	otherID := uuid.New()
+	svc := &selfServiceTenantService{}
+	handler := New(
+		svc,
+		func(context.Context) string { return tenantID.String() },
+		func(context.Context) uuid.UUID { return actorID },
+		func(context.Context) bool { return false },
+		nil,
+	)
+	body := []byte(`{"user_id":"` + otherID.String() + `","work_date":"2026-07-08","requested_minutes":120}`)
+	request := httptest.NewRequest(http.MethodPost, "/hrms/overtime-requests", bytes.NewReader(body))
+	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.AttendanceSelfOvertimeRequest}))
+	recorder := httptest.NewRecorder()
+
+	handler.CreateOvertimeRequest(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusForbidden, recorder.Body.String())
+	}
+	if svc.createOvertimeCalled {
+		t.Fatal("service should not be called for other user's overtime request")
+	}
+}
+
+func TestEmployeeCannotListOtherUserOvertimeRequests(t *testing.T) {
+	tenantID := uuid.New()
+	actorID := uuid.New()
+	otherID := uuid.New()
+	svc := &selfServiceTenantService{}
+	handler := New(
+		svc,
+		func(context.Context) string { return tenantID.String() },
+		func(context.Context) uuid.UUID { return actorID },
+		func(context.Context) bool { return false },
+		nil,
+	)
+	request := httptest.NewRequest(http.MethodGet, "/hrms/overtime-requests?user_id="+otherID.String(), nil)
+	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.AttendanceSelfOvertimeRequest}))
+	recorder := httptest.NewRecorder()
+
+	handler.ListOvertimeRequests(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusForbidden, recorder.Body.String())
+	}
+	if svc.listOvertimeCalled {
+		t.Fatal("service should not be called for other user's overtime requests")
+	}
+}
+
+func TestEmployeeCannotApproveOvertimeRequest(t *testing.T) {
+	tenantID := uuid.New()
+	actorID := uuid.New()
+	requestID := uuid.New()
+	svc := &selfServiceTenantService{}
+	handler := New(
+		svc,
+		func(context.Context) string { return tenantID.String() },
+		func(context.Context) uuid.UUID { return actorID },
+		func(context.Context) bool { return false },
+		nil,
+	)
+	request := httptest.NewRequest(http.MethodPost, "/hrms/overtime-requests/"+requestID.String()+"/approve", bytes.NewReader([]byte(`{}`)))
+	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.AttendanceSelfOvertimeRequest}))
+	recorder := httptest.NewRecorder()
+
+	handler.reviewOvertimeRequestForTenant(recorder, request, tenantID, requestID, "approve overtime request", domain.OvertimeStatusApproved)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusForbidden, recorder.Body.String())
+	}
+	if svc.reviewOvertimeCalled {
+		t.Fatal("service should not be called for employee overtime approval")
 	}
 }

@@ -3240,6 +3240,34 @@ type HrmsOperationTemplate struct {
 	UpdatedBy            pgtype.UUID        `db:"updated_by" json:"updated_by"`
 }
 
+type HrmsOvertimeRequest struct {
+	ID                   uuid.UUID          `db:"id" json:"id"`
+	TenantID             uuid.UUID          `db:"tenant_id" json:"tenant_id"`
+	UserID               uuid.UUID          `db:"user_id" json:"user_id"`
+	WorkDate             pgtype.Date        `db:"work_date" json:"work_date"`
+	RequestedMinutes     int32              `db:"requested_minutes" json:"requested_minutes"`
+	ApprovedMinutes      pgtype.Int4        `db:"approved_minutes" json:"approved_minutes"`
+	Reason               pgtype.Text        `db:"reason" json:"reason"`
+	Status               string             `db:"status" json:"status"`
+	ReviewedBy           pgtype.UUID        `db:"reviewed_by" json:"reviewed_by"`
+	ReviewedAt           pgtype.Timestamptz `db:"reviewed_at" json:"reviewed_at"`
+	ReviewRemarks        pgtype.Text        `db:"review_remarks" json:"review_remarks"`
+	CalculationType      string             `db:"calculation_type" json:"calculation_type"`
+	RateMultiplier       pgtype.Numeric     `db:"rate_multiplier" json:"rate_multiplier"`
+	PayrollComponentCode pgtype.Text        `db:"payroll_component_code" json:"payroll_component_code"`
+	PayrollExportStatus  string             `db:"payroll_export_status" json:"payroll_export_status"`
+	PayrollExportedAt    pgtype.Timestamptz `db:"payroll_exported_at" json:"payroll_exported_at"`
+	PayrollExportedBy    pgtype.UUID        `db:"payroll_exported_by" json:"payroll_exported_by"`
+	SourceAttendanceID   pgtype.UUID        `db:"source_attendance_id" json:"source_attendance_id"`
+	SourceSegmentID      pgtype.UUID        `db:"source_segment_id" json:"source_segment_id"`
+	Metadata             []byte             `db:"metadata" json:"metadata"`
+	Inactive             bool               `db:"inactive" json:"inactive"`
+	CreatedAt            pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	CreatedBy            pgtype.UUID        `db:"created_by" json:"created_by"`
+	UpdatedAt            pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	UpdatedBy            pgtype.UUID        `db:"updated_by" json:"updated_by"`
+}
+
 type HrmsPayCycle struct {
 	ID                     uuid.UUID          `db:"id" json:"id"`
 	TenantID               uuid.UUID          `db:"tenant_id" json:"tenant_id"`
