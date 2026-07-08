@@ -12,9 +12,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/ranakdinesh/spur-hrms/core/domain"
 	"github.com/ranakdinesh/spur-hrms/core/ports"
+	"github.com/ranakdinesh/spur-hrms/pkg/permissions"
 )
 
 func (h *Handler) ListPayGroups(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, "list pay groups", permissions.PayGroupsList) {
+		return
+	}
 	tenantID, ok := h.currentTenantID(w, r, "list pay groups")
 	if ok {
 		h.listPayGroupsForTenant(w, r, tenantID, "list pay groups")
@@ -81,6 +85,9 @@ func (h *Handler) DeletePayGroupMember(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListPayRuns(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, "list pay runs", permissions.PayRunsList) {
+		return
+	}
 	tenantID, ok := h.currentTenantID(w, r, "list pay runs")
 	if ok {
 		h.listPayRunsForTenant(w, r, tenantID, "list pay runs")

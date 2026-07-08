@@ -8,9 +8,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/ranakdinesh/spur-hrms/core/ports"
+	"github.com/ranakdinesh/spur-hrms/pkg/permissions"
 )
 
 func (h *Handler) ListPayrollPeriodLocks(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, "list payroll locks", permissions.PayrollLocksManage) {
+		return
+	}
 	tenantID, err := h.tenantIDFromRequest(r)
 	if err != nil {
 		h.respondError(w, r, http.StatusUnauthorized, "list payroll locks", err, "tenant context is required")
@@ -122,6 +126,9 @@ func (h *Handler) ImportPayrollData(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListPayrollImportBatches(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, "list payroll imports", permissions.PayrollImportsList) {
+		return
+	}
 	tenantID, err := h.tenantIDFromRequest(r)
 	if err != nil {
 		h.respondError(w, r, http.StatusUnauthorized, "list payroll imports", err, "tenant context is required")
@@ -159,6 +166,9 @@ func (h *Handler) GetTenantPayrollImportBatch(w http.ResponseWriter, r *http.Req
 }
 
 func (h *Handler) ListConsolidatedSalarySheet(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, "list salary sheet", permissions.PayrollSalarySheetView) {
+		return
+	}
 	tenantID, err := h.tenantIDFromRequest(r)
 	if err != nil {
 		h.respondError(w, r, http.StatusUnauthorized, "list salary sheet", err, "tenant context is required")
@@ -167,6 +177,9 @@ func (h *Handler) ListConsolidatedSalarySheet(w http.ResponseWriter, r *http.Req
 	h.listConsolidatedSalarySheetForTenant(w, r, tenantID, "list salary sheet")
 }
 func (h *Handler) ExportConsolidatedSalarySheet(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, "export salary sheet", permissions.PayrollSalarySheetExport) {
+		return
+	}
 	tenantID, err := h.tenantIDFromRequest(r)
 	if err != nil {
 		h.respondError(w, r, http.StatusUnauthorized, "export salary sheet", err, "tenant context is required")
@@ -175,6 +188,9 @@ func (h *Handler) ExportConsolidatedSalarySheet(w http.ResponseWriter, r *http.R
 	h.exportConsolidatedSalarySheetForTenant(w, r, tenantID, "export salary sheet")
 }
 func (h *Handler) ListPayrollReconciliation(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, "list payroll reconciliation", permissions.PayrollReconciliation) {
+		return
+	}
 	tenantID, err := h.tenantIDFromRequest(r)
 	if err != nil {
 		h.respondError(w, r, http.StatusUnauthorized, "list payroll reconciliation", err, "tenant context is required")

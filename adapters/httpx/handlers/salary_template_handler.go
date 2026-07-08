@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/ranakdinesh/spur-hrms/core/ports"
+	"github.com/ranakdinesh/spur-hrms/pkg/permissions"
 )
 
 func (h *Handler) CreateSalaryTemplate(w http.ResponseWriter, r *http.Request) {
@@ -19,6 +20,9 @@ func (h *Handler) CreateSalaryTemplate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListSalaryTemplates(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, "list salary templates", permissions.SalaryTemplatesList) {
+		return
+	}
 	tenantID, err := h.tenantIDFromRequest(r)
 	if err != nil {
 		h.respondError(w, r, http.StatusUnauthorized, "list salary templates", err, "tenant context is required")

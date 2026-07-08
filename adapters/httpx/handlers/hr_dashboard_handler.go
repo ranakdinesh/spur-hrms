@@ -7,9 +7,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ranakdinesh/spur-hrms/core/domain"
+	"github.com/ranakdinesh/spur-hrms/pkg/permissions"
 )
 
 func (h *Handler) GetHRDashboard(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, "get hr dashboard", permissions.DashboardHRView) {
+		return
+	}
 	tenantID, err := h.tenantIDFromRequest(r)
 	if err != nil {
 		h.respondError(w, r, http.StatusUnauthorized, "get hr dashboard", err, "tenant context is required")
