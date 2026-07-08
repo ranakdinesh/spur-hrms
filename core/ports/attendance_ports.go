@@ -15,6 +15,9 @@ type AttendanceRepo interface {
 	ListAttendancesByUserDate(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID, date string) ([]*domain.Attendance, error)
 	ListAttendancesByDate(ctx context.Context, tenantID uuid.UUID, date string) ([]*domain.Attendance, error)
 	GetAttendance(ctx context.Context, tenantID uuid.UUID, id uuid.UUID) (*domain.Attendance, error)
+	CreateAttendanceWorkdaySegment(ctx context.Context, item *domain.AttendanceWorkdaySegment, actorID *uuid.UUID) (*domain.AttendanceWorkdaySegment, error)
+	ListAttendanceWorkdaySegmentsByUser(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID, startDate string, endDate string) ([]*domain.AttendanceWorkdaySegment, error)
+	ListAttendanceWorkdaySegmentsByUserDate(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID, date string) ([]*domain.AttendanceWorkdaySegment, error)
 	CreateDeviceLog(ctx context.Context, item *domain.DeviceLog, actorID *uuid.UUID) (*domain.DeviceLog, error)
 	ListDeviceLogsByUser(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID) ([]*domain.DeviceLog, error)
 }
@@ -40,6 +43,28 @@ type AttendanceStatusQuery struct {
 	TenantID uuid.UUID  `json:"tenant_id"`
 	UserID   *uuid.UUID `json:"user_id,omitempty"`
 	Date     string     `json:"date"`
+}
+
+type AttendanceSegmentCommand struct {
+	TenantID                   uuid.UUID       `json:"tenant_id"`
+	UserID                     uuid.UUID       `json:"user_id"`
+	Date                       string          `json:"date"`
+	EventTime                  string          `json:"event_time"`
+	SegmentType                string          `json:"segment_type"`
+	Action                     string          `json:"action"`
+	WorkMode                   *string         `json:"work_mode,omitempty"`
+	Source                     *string         `json:"source,omitempty"`
+	AttendanceLocationID       *uuid.UUID      `json:"attendance_location_id,omitempty"`
+	ReferenceType              *string         `json:"reference_type,omitempty"`
+	ReferenceID                *uuid.UUID      `json:"reference_id,omitempty"`
+	ReferenceLabel             *string         `json:"reference_label,omitempty"`
+	Latitude                   *float64        `json:"latitude,omitempty"`
+	Longitude                  *float64        `json:"longitude,omitempty"`
+	LocationAccuracyMeters     *float64        `json:"location_accuracy_meters,omitempty"`
+	LocationVerificationStatus string          `json:"location_verification_status,omitempty"`
+	Remarks                    *string         `json:"remarks,omitempty"`
+	Metadata                   json.RawMessage `json:"metadata,omitempty"`
+	ActorID                    *uuid.UUID      `json:"-"`
 }
 
 type AttendanceReportQuery struct {

@@ -145,6 +145,137 @@ func (s *TenantService) ListAttendancesByUserDate(ctx context.Context, tenantID 
 	return items, nil
 }
 
+func (s *TenantService) CreateAttendanceWorkdaySegment(ctx context.Context, cmd ports.AttendanceSegmentCommand) (*domain.AttendanceWorkdaySegment, error) {
+	if cmd.TenantID == uuid.Nil {
+		err := domain.ErrInvalidTenantID
+		s.logError("validate attendance segment tenant", err)
+		return nil, err
+	}
+	if cmd.UserID == uuid.Nil {
+		err := domain.ErrInvalidLeaveUser
+		s.logError("validate attendance segment user", err, serviceTenantIDField(cmd.TenantID))
+		return nil, err
+	}
+	if _, err := s.employees.GetEmployeeByUserID(ctx, cmd.TenantID, cmd.UserID); err != nil {
+		s.logError("validate attendance segment employee", err, serviceTenantIDField(cmd.TenantID), serviceStringField("user_id", cmd.UserID.String()))
+		return nil, err
+	}
+	attendanceRequired, err := s.employees.GetEmployeeAttendanceRequired(ctx, cmd.TenantID, cmd.UserID)
+	if err != nil {
+		s.logError("validate attendance segment requirement", err, serviceTenantIDField(cmd.TenantID), serviceStringField("user_id", cmd.UserID.String()))
+		return nil, err
+	}
+	if !attendanceRequired {
+		err := domain.ErrAttendanceNotRequired
+		s.logError("validate attendance segment requirement", err, serviceTenantIDField(cmd.TenantID), serviceStringField("user_id", cmd.UserID.String()))
+		return nil, err
+	}
+	eventTime, err := parseAttendanceTime(cmd.EventTime)
+	if err != nil {
+		s.logError("parse attendance segment event time", err, serviceTenantIDField(cmd.TenantID), serviceStringField("user_id", cmd.UserID.String()))
+		return nil, err
+	}
+	segmentDate, err := parseAttendanceDate(cmd.Date, eventTime)
+	if err != nil {
+		s.logError("parse attendance segment date", err, serviceTenantIDField(cmd.TenantID), serviceStringField("user_id", cmd.UserID.String()))
+		return nil, err
+	}
+	if cmd.Source == nil || *cmd.Source == "" {
+		cmd.Source = strPtr(domain.AttendanceSourceWeb)
+	}
+	if cmd.WorkMode == nil || *cmd.WorkMode == "" {
+		cmd.WorkMode = strPtr(domain.AttendanceWorkModeField)
+	}
+	item, err := domain.NewAttendanceWorkdaySegment(domain.AttendanceWorkdaySegment{
+		TenantID:                   cmd.TenantID,
+		UserID:                     cmd.UserID,
+		Date:                       segmentDate,
+		EventTime:                  eventTime,
+		SegmentType:                cmd.SegmentType,
+		Action:                     cmd.Action,
+		WorkMode:                   cmd.WorkMode,
+		Source:                     cmd.Source,
+		AttendanceLocationID:       cmd.AttendanceLocationID,
+		ReferenceType:              cmd.ReferenceType,
+		ReferenceID:                cmd.ReferenceID,
+		ReferenceLabel:             cmd.ReferenceLabel,
+		Latitude:                   cmd.Latitude,
+		Longitude:                  cmd.Longitude,
+		LocationAccuracyMeters:     cmd.LocationAccuracyMeters,
+		LocationVerificationStatus: cmd.LocationVerificationStatus,
+		Remarks:                    cmd.Remarks,
+		Metadata:                   cmd.Metadata,
+	})
+	if err != nil {
+		s.logError("validate attendance segment", err, serviceTenantIDField(cmd.TenantID), serviceStringField("user_id", cmd.UserID.String()))
+		return nil, err
+	}
+	var result *domain.AttendanceWorkdaySegment
+	err = s.system.RunAsSystem(ctx, func(txCtx context.Context) error {
+		created, err := s.attendances.CreateAttendanceWorkdaySegment(txCtx, item, cmd.ActorID)
+		if err != nil {
+			return err
+		}
+		result = created
+		return nil
+	})
+	if err != nil {
+		s.logError("create attendance segment", err, serviceTenantIDField(cmd.TenantID), serviceStringField("user_id", cmd.UserID.String()))
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *TenantService) ListAttendanceWorkdaySegmentsByUser(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID, startDate string, endDate string) ([]*domain.AttendanceWorkdaySegment, error) {
+	if tenantID == uuid.Nil {
+		err := domain.ErrInvalidTenantID
+		s.logError("validate attendance segment list tenant", err)
+		return nil, err
+	}
+	if userID == uuid.Nil {
+		err := domain.ErrInvalidLeaveUser
+		s.logError("validate attendance segment list user", err, serviceTenantIDField(tenantID))
+		return nil, err
+	}
+	start, end, err := parseDateRangeOrToday(startDate, endDate)
+	if err != nil {
+		s.logError("validate attendance segment list date range", err, serviceTenantIDField(tenantID), serviceStringField("user_id", userID.String()))
+		return nil, err
+	}
+	items, err := s.attendances.ListAttendanceWorkdaySegmentsByUser(ctx, tenantID, userID, start.Format("2006-01-02"), end.Format("2006-01-02"))
+	if err != nil {
+		s.logError("list attendance segments by user", err, serviceTenantIDField(tenantID), serviceStringField("user_id", userID.String()))
+		return nil, err
+	}
+	return items, nil
+}
+
+func (s *TenantService) ListAttendanceWorkdaySegmentsByUserDate(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID, date string) ([]*domain.AttendanceWorkdaySegment, error) {
+	if tenantID == uuid.Nil {
+		err := domain.ErrInvalidTenantID
+		s.logError("validate attendance segment day tenant", err)
+		return nil, err
+	}
+	if userID == uuid.Nil {
+		err := domain.ErrInvalidLeaveUser
+		s.logError("validate attendance segment day user", err, serviceTenantIDField(tenantID))
+		return nil, err
+	}
+	if date == "" {
+		date = time.Now().UTC().Format("2006-01-02")
+	}
+	if _, err := time.Parse("2006-01-02", date); err != nil {
+		s.logError("validate attendance segment day date", domain.ErrInvalidAttendanceDate, serviceTenantIDField(tenantID), serviceStringField("user_id", userID.String()))
+		return nil, domain.ErrInvalidAttendanceDate
+	}
+	items, err := s.attendances.ListAttendanceWorkdaySegmentsByUserDate(ctx, tenantID, userID, date)
+	if err != nil {
+		s.logError("list attendance segments by user date", err, serviceTenantIDField(tenantID), serviceStringField("user_id", userID.String()))
+		return nil, err
+	}
+	return items, nil
+}
+
 func parseAttendanceTime(value string) (time.Time, error) {
 	if value == "" {
 		return time.Now().UTC(), nil

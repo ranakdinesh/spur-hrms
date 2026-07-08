@@ -81,6 +81,62 @@ func (s *Store) GetAttendance(ctx context.Context, tenantID uuid.UUID, id uuid.U
 	return mapAttendance(row), nil
 }
 
+func (s *Store) CreateAttendanceWorkdaySegment(ctx context.Context, item *domain.AttendanceWorkdaySegment, actorID *uuid.UUID) (*domain.AttendanceWorkdaySegment, error) {
+	row, err := s.getQueries(ctx).CreateAttendanceWorkdaySegment(ctx, sqlc.CreateAttendanceWorkdaySegmentParams{
+		TenantID:                   item.TenantID,
+		UserID:                     item.UserID,
+		Date:                       dateFromTime(item.Date),
+		EventTime:                  timestamptzFromPtr(&item.EventTime),
+		SegmentType:                item.SegmentType,
+		Action:                     item.Action,
+		WorkMode:                   textFromPtr(item.WorkMode),
+		Source:                     textFromPtr(item.Source),
+		AttendanceLocationID:       uuidFromPtr(item.AttendanceLocationID),
+		ReferenceType:              textFromPtr(item.ReferenceType),
+		ReferenceID:                uuidFromPtr(item.ReferenceID),
+		ReferenceLabel:             textFromPtr(item.ReferenceLabel),
+		Latitude:                   numericFromCoordinatePtr(item.Latitude),
+		Longitude:                  numericFromCoordinatePtr(item.Longitude),
+		LocationAccuracyMeters:     numericFromFloatPtr(item.LocationAccuracyMeters),
+		LocationVerificationStatus: item.LocationVerificationStatus,
+		Remarks:                    textFromPtr(item.Remarks),
+		Metadata:                   jsonBytesFromRaw(item.Metadata),
+		CreatedBy:                  uuidFromPtr(actorID),
+	})
+	if err != nil {
+		return nil, s.logDBError(ctx, "create attendance workday segment", err, tenantIDField(item.TenantID), stringField("user_id", item.UserID.String()))
+	}
+	return mapAttendanceWorkdaySegment(row), nil
+}
+
+func (s *Store) ListAttendanceWorkdaySegmentsByUser(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID, startDate string, endDate string) ([]*domain.AttendanceWorkdaySegment, error) {
+	start, err := time.Parse("2006-01-02", startDate)
+	if err != nil {
+		return nil, err
+	}
+	end, err := time.Parse("2006-01-02", endDate)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.getQueries(ctx).ListAttendanceWorkdaySegmentsByUser(ctx, sqlc.ListAttendanceWorkdaySegmentsByUserParams{TenantID: tenantID, UserID: userID, Date: dateFromTime(start), Date_2: dateFromTime(end)})
+	if err != nil {
+		return nil, s.logDBError(ctx, "list attendance workday segments by user", err, tenantIDField(tenantID), stringField("user_id", userID.String()))
+	}
+	return mapAttendanceWorkdaySegments(rows), nil
+}
+
+func (s *Store) ListAttendanceWorkdaySegmentsByUserDate(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID, date string) ([]*domain.AttendanceWorkdaySegment, error) {
+	parsed, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.getQueries(ctx).ListAttendanceWorkdaySegmentsByUserDate(ctx, sqlc.ListAttendanceWorkdaySegmentsByUserDateParams{TenantID: tenantID, UserID: userID, Date: dateFromTime(parsed)})
+	if err != nil {
+		return nil, s.logDBError(ctx, "list attendance workday segments by user date", err, tenantIDField(tenantID), stringField("user_id", userID.String()))
+	}
+	return mapAttendanceWorkdaySegments(rows), nil
+}
+
 func (s *Store) CreateDeviceLog(ctx context.Context, item *domain.DeviceLog, actorID *uuid.UUID) (*domain.DeviceLog, error) {
 	row, err := s.getQueries(ctx).CreateDeviceLog(ctx, sqlc.CreateDeviceLogParams{TenantID: item.TenantID, UserID: item.UserID, DeviceID: textFromPtr(item.DeviceID), DeviceType: textFromPtr(item.DeviceType), IpAddress: textFromPtr(item.IPAddress), Action: textFromPtr(item.Action), CreatedBy: uuidFromPtr(actorID)})
 	if err != nil {

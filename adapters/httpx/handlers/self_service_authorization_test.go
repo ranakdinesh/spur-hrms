@@ -20,6 +20,8 @@ type selfServiceTenantService struct {
 	previewLeaveCalled     bool
 	cancelLeaveCalled      bool
 	listApprovalsCalled    bool
+	createSegmentCalled    bool
+	listSegmentsCalled     bool
 	attendanceStatusCalled bool
 	gotUserID              uuid.UUID
 	gotApproverID          uuid.UUID
@@ -48,6 +50,24 @@ func (s *selfServiceTenantService) ListPendingApprovalsByApprover(ctx context.Co
 	s.listApprovalsCalled = true
 	s.gotApproverID = approverID
 	return []*domain.LeaveApproval{}, nil
+}
+
+func (s *selfServiceTenantService) CreateAttendanceWorkdaySegment(ctx context.Context, cmd ports.AttendanceSegmentCommand) (*domain.AttendanceWorkdaySegment, error) {
+	s.createSegmentCalled = true
+	s.gotUserID = cmd.UserID
+	return &domain.AttendanceWorkdaySegment{ID: uuid.New(), TenantID: cmd.TenantID, UserID: cmd.UserID, SegmentType: cmd.SegmentType, Action: cmd.Action}, nil
+}
+
+func (s *selfServiceTenantService) ListAttendanceWorkdaySegmentsByUser(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID, startDate string, endDate string) ([]*domain.AttendanceWorkdaySegment, error) {
+	s.listSegmentsCalled = true
+	s.gotUserID = userID
+	return []*domain.AttendanceWorkdaySegment{}, nil
+}
+
+func (s *selfServiceTenantService) ListAttendanceWorkdaySegmentsByUserDate(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID, date string) ([]*domain.AttendanceWorkdaySegment, error) {
+	s.listSegmentsCalled = true
+	s.gotUserID = userID
+	return []*domain.AttendanceWorkdaySegment{}, nil
 }
 
 func (s *selfServiceTenantService) ListAttendanceDailyStatuses(ctx context.Context, query ports.AttendanceStatusQuery) ([]*domain.AttendanceDailyStatus, error) {
@@ -262,5 +282,57 @@ func TestEmployeeCannotReadOtherAttendanceStatus(t *testing.T) {
 	}
 	if svc.attendanceStatusCalled {
 		t.Fatal("service should not be called for other user's attendance status")
+	}
+}
+
+func TestEmployeeCanCreateOwnAttendanceSegment(t *testing.T) {
+	tenantID := uuid.New()
+	actorID := uuid.New()
+	svc := &selfServiceTenantService{}
+	handler := New(
+		svc,
+		func(context.Context) string { return tenantID.String() },
+		func(context.Context) uuid.UUID { return actorID },
+		func(context.Context) bool { return false },
+		nil,
+	)
+	body := []byte(`{"segment_type":"client_site","action":"arrive","date":"2026-07-08","event_time":"2026-07-08T10:00:00Z"}`)
+	request := httptest.NewRequest(http.MethodPost, "/hrms/attendances/segments", bytes.NewReader(body))
+	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.AttendanceSelfPunch}))
+	recorder := httptest.NewRecorder()
+
+	handler.CreateAttendanceWorkdaySegment(recorder, request)
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusCreated, recorder.Body.String())
+	}
+	if !svc.createSegmentCalled || svc.gotUserID != actorID {
+		t.Fatalf("segment user = %s called=%t, want actor %s", svc.gotUserID, svc.createSegmentCalled, actorID)
+	}
+}
+
+func TestEmployeeCannotListOtherUserAttendanceSegments(t *testing.T) {
+	tenantID := uuid.New()
+	actorID := uuid.New()
+	otherID := uuid.New()
+	svc := &selfServiceTenantService{}
+	handler := New(
+		svc,
+		func(context.Context) string { return tenantID.String() },
+		func(context.Context) uuid.UUID { return actorID },
+		func(context.Context) bool { return false },
+		nil,
+	)
+	request := httptest.NewRequest(http.MethodGet, "/hrms/attendances/segments?date=2026-07-08&user_id="+otherID.String(), nil)
+	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.AttendanceSelfView}))
+	recorder := httptest.NewRecorder()
+
+	handler.ListAttendanceWorkdaySegments(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusForbidden, recorder.Body.String())
+	}
+	if svc.listSegmentsCalled {
+		t.Fatal("service should not be called for other user's attendance segments")
 	}
 }

@@ -554,6 +554,109 @@ func (q *Queries) CreateAttendanceRoster(ctx context.Context, arg CreateAttendan
 	return i, err
 }
 
+const createAttendanceWorkdaySegment = `-- name: CreateAttendanceWorkdaySegment :one
+INSERT INTO hrms.attendance_workday_segments (
+    tenant_id,
+    user_id,
+    date,
+    event_time,
+    segment_type,
+    action,
+    work_mode,
+    source,
+    attendance_location_id,
+    reference_type,
+    reference_id,
+    reference_label,
+    latitude,
+    longitude,
+    location_accuracy_meters,
+    location_verification_status,
+    remarks,
+    metadata,
+    created_by,
+    updated_by
+) VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+    $11, $12, $13, $14, $15, $16, $17, $18, $19, $19
+)
+RETURNING id, tenant_id, user_id, date, event_time, segment_type, action, work_mode, source, attendance_location_id, reference_type, reference_id, reference_label, latitude, longitude, location_accuracy_meters, location_verification_status, remarks, metadata, inactive, created_at, created_by, updated_at, updated_by
+`
+
+type CreateAttendanceWorkdaySegmentParams struct {
+	TenantID                   uuid.UUID          `db:"tenant_id" json:"tenant_id"`
+	UserID                     uuid.UUID          `db:"user_id" json:"user_id"`
+	Date                       pgtype.Date        `db:"date" json:"date"`
+	EventTime                  pgtype.Timestamptz `db:"event_time" json:"event_time"`
+	SegmentType                string             `db:"segment_type" json:"segment_type"`
+	Action                     string             `db:"action" json:"action"`
+	WorkMode                   pgtype.Text        `db:"work_mode" json:"work_mode"`
+	Source                     pgtype.Text        `db:"source" json:"source"`
+	AttendanceLocationID       pgtype.UUID        `db:"attendance_location_id" json:"attendance_location_id"`
+	ReferenceType              pgtype.Text        `db:"reference_type" json:"reference_type"`
+	ReferenceID                pgtype.UUID        `db:"reference_id" json:"reference_id"`
+	ReferenceLabel             pgtype.Text        `db:"reference_label" json:"reference_label"`
+	Latitude                   pgtype.Numeric     `db:"latitude" json:"latitude"`
+	Longitude                  pgtype.Numeric     `db:"longitude" json:"longitude"`
+	LocationAccuracyMeters     pgtype.Numeric     `db:"location_accuracy_meters" json:"location_accuracy_meters"`
+	LocationVerificationStatus string             `db:"location_verification_status" json:"location_verification_status"`
+	Remarks                    pgtype.Text        `db:"remarks" json:"remarks"`
+	Metadata                   []byte             `db:"metadata" json:"metadata"`
+	CreatedBy                  pgtype.UUID        `db:"created_by" json:"created_by"`
+}
+
+func (q *Queries) CreateAttendanceWorkdaySegment(ctx context.Context, arg CreateAttendanceWorkdaySegmentParams) (HrmsAttendanceWorkdaySegment, error) {
+	row := q.db.QueryRow(ctx, createAttendanceWorkdaySegment,
+		arg.TenantID,
+		arg.UserID,
+		arg.Date,
+		arg.EventTime,
+		arg.SegmentType,
+		arg.Action,
+		arg.WorkMode,
+		arg.Source,
+		arg.AttendanceLocationID,
+		arg.ReferenceType,
+		arg.ReferenceID,
+		arg.ReferenceLabel,
+		arg.Latitude,
+		arg.Longitude,
+		arg.LocationAccuracyMeters,
+		arg.LocationVerificationStatus,
+		arg.Remarks,
+		arg.Metadata,
+		arg.CreatedBy,
+	)
+	var i HrmsAttendanceWorkdaySegment
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.UserID,
+		&i.Date,
+		&i.EventTime,
+		&i.SegmentType,
+		&i.Action,
+		&i.WorkMode,
+		&i.Source,
+		&i.AttendanceLocationID,
+		&i.ReferenceType,
+		&i.ReferenceID,
+		&i.ReferenceLabel,
+		&i.Latitude,
+		&i.Longitude,
+		&i.LocationAccuracyMeters,
+		&i.LocationVerificationStatus,
+		&i.Remarks,
+		&i.Metadata,
+		&i.Inactive,
+		&i.CreatedAt,
+		&i.CreatedBy,
+		&i.UpdatedAt,
+		&i.UpdatedBy,
+	)
+	return i, err
+}
+
 const createDeviceLog = `-- name: CreateDeviceLog :one
 INSERT INTO hrms.device_logs (
     tenant_id,
@@ -1491,6 +1594,132 @@ func (q *Queries) ListAttendanceRostersByUser(ctx context.Context, arg ListAtten
 			&i.WorkMode,
 			&i.LocationType,
 			&i.Remarks,
+			&i.Inactive,
+			&i.CreatedAt,
+			&i.CreatedBy,
+			&i.UpdatedAt,
+			&i.UpdatedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAttendanceWorkdaySegmentsByUser = `-- name: ListAttendanceWorkdaySegmentsByUser :many
+SELECT id, tenant_id, user_id, date, event_time, segment_type, action, work_mode, source, attendance_location_id, reference_type, reference_id, reference_label, latitude, longitude, location_accuracy_meters, location_verification_status, remarks, metadata, inactive, created_at, created_by, updated_at, updated_by FROM hrms.attendance_workday_segments
+WHERE tenant_id = $1
+  AND user_id = $2
+  AND date BETWEEN $3 AND $4
+  AND NOT inactive
+ORDER BY date ASC, event_time ASC, created_at ASC
+`
+
+type ListAttendanceWorkdaySegmentsByUserParams struct {
+	TenantID uuid.UUID   `db:"tenant_id" json:"tenant_id"`
+	UserID   uuid.UUID   `db:"user_id" json:"user_id"`
+	Date     pgtype.Date `db:"date" json:"date"`
+	Date_2   pgtype.Date `db:"date_2" json:"date_2"`
+}
+
+func (q *Queries) ListAttendanceWorkdaySegmentsByUser(ctx context.Context, arg ListAttendanceWorkdaySegmentsByUserParams) ([]HrmsAttendanceWorkdaySegment, error) {
+	rows, err := q.db.Query(ctx, listAttendanceWorkdaySegmentsByUser,
+		arg.TenantID,
+		arg.UserID,
+		arg.Date,
+		arg.Date_2,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []HrmsAttendanceWorkdaySegment
+	for rows.Next() {
+		var i HrmsAttendanceWorkdaySegment
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.UserID,
+			&i.Date,
+			&i.EventTime,
+			&i.SegmentType,
+			&i.Action,
+			&i.WorkMode,
+			&i.Source,
+			&i.AttendanceLocationID,
+			&i.ReferenceType,
+			&i.ReferenceID,
+			&i.ReferenceLabel,
+			&i.Latitude,
+			&i.Longitude,
+			&i.LocationAccuracyMeters,
+			&i.LocationVerificationStatus,
+			&i.Remarks,
+			&i.Metadata,
+			&i.Inactive,
+			&i.CreatedAt,
+			&i.CreatedBy,
+			&i.UpdatedAt,
+			&i.UpdatedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAttendanceWorkdaySegmentsByUserDate = `-- name: ListAttendanceWorkdaySegmentsByUserDate :many
+SELECT id, tenant_id, user_id, date, event_time, segment_type, action, work_mode, source, attendance_location_id, reference_type, reference_id, reference_label, latitude, longitude, location_accuracy_meters, location_verification_status, remarks, metadata, inactive, created_at, created_by, updated_at, updated_by FROM hrms.attendance_workday_segments
+WHERE tenant_id = $1
+  AND user_id = $2
+  AND date = $3
+  AND NOT inactive
+ORDER BY event_time ASC, created_at ASC
+`
+
+type ListAttendanceWorkdaySegmentsByUserDateParams struct {
+	TenantID uuid.UUID   `db:"tenant_id" json:"tenant_id"`
+	UserID   uuid.UUID   `db:"user_id" json:"user_id"`
+	Date     pgtype.Date `db:"date" json:"date"`
+}
+
+func (q *Queries) ListAttendanceWorkdaySegmentsByUserDate(ctx context.Context, arg ListAttendanceWorkdaySegmentsByUserDateParams) ([]HrmsAttendanceWorkdaySegment, error) {
+	rows, err := q.db.Query(ctx, listAttendanceWorkdaySegmentsByUserDate, arg.TenantID, arg.UserID, arg.Date)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []HrmsAttendanceWorkdaySegment
+	for rows.Next() {
+		var i HrmsAttendanceWorkdaySegment
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.UserID,
+			&i.Date,
+			&i.EventTime,
+			&i.SegmentType,
+			&i.Action,
+			&i.WorkMode,
+			&i.Source,
+			&i.AttendanceLocationID,
+			&i.ReferenceType,
+			&i.ReferenceID,
+			&i.ReferenceLabel,
+			&i.Latitude,
+			&i.Longitude,
+			&i.LocationAccuracyMeters,
+			&i.LocationVerificationStatus,
+			&i.Remarks,
+			&i.Metadata,
 			&i.Inactive,
 			&i.CreatedAt,
 			&i.CreatedBy,

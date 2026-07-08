@@ -37,6 +37,50 @@ INSERT INTO hrms.attendances (
 )
 RETURNING *;
 
+-- name: CreateAttendanceWorkdaySegment :one
+INSERT INTO hrms.attendance_workday_segments (
+    tenant_id,
+    user_id,
+    date,
+    event_time,
+    segment_type,
+    action,
+    work_mode,
+    source,
+    attendance_location_id,
+    reference_type,
+    reference_id,
+    reference_label,
+    latitude,
+    longitude,
+    location_accuracy_meters,
+    location_verification_status,
+    remarks,
+    metadata,
+    created_by,
+    updated_by
+) VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+    $11, $12, $13, $14, $15, $16, $17, $18, $19, $19
+)
+RETURNING *;
+
+-- name: ListAttendanceWorkdaySegmentsByUser :many
+SELECT * FROM hrms.attendance_workday_segments
+WHERE tenant_id = $1
+  AND user_id = $2
+  AND date BETWEEN $3 AND $4
+  AND NOT inactive
+ORDER BY date ASC, event_time ASC, created_at ASC;
+
+-- name: ListAttendanceWorkdaySegmentsByUserDate :many
+SELECT * FROM hrms.attendance_workday_segments
+WHERE tenant_id = $1
+  AND user_id = $2
+  AND date = $3
+  AND NOT inactive
+ORDER BY event_time ASC, created_at ASC;
+
 -- name: UpdateAttendance :one
 UPDATE hrms.attendances
 SET

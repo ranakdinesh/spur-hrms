@@ -526,6 +526,33 @@ type HrmsAttendanceRoster struct {
 	UpdatedBy    pgtype.UUID        `db:"updated_by" json:"updated_by"`
 }
 
+type HrmsAttendanceWorkdaySegment struct {
+	ID                         uuid.UUID          `db:"id" json:"id"`
+	TenantID                   uuid.UUID          `db:"tenant_id" json:"tenant_id"`
+	UserID                     uuid.UUID          `db:"user_id" json:"user_id"`
+	Date                       pgtype.Date        `db:"date" json:"date"`
+	EventTime                  pgtype.Timestamptz `db:"event_time" json:"event_time"`
+	SegmentType                string             `db:"segment_type" json:"segment_type"`
+	Action                     string             `db:"action" json:"action"`
+	WorkMode                   pgtype.Text        `db:"work_mode" json:"work_mode"`
+	Source                     pgtype.Text        `db:"source" json:"source"`
+	AttendanceLocationID       pgtype.UUID        `db:"attendance_location_id" json:"attendance_location_id"`
+	ReferenceType              pgtype.Text        `db:"reference_type" json:"reference_type"`
+	ReferenceID                pgtype.UUID        `db:"reference_id" json:"reference_id"`
+	ReferenceLabel             pgtype.Text        `db:"reference_label" json:"reference_label"`
+	Latitude                   pgtype.Numeric     `db:"latitude" json:"latitude"`
+	Longitude                  pgtype.Numeric     `db:"longitude" json:"longitude"`
+	LocationAccuracyMeters     pgtype.Numeric     `db:"location_accuracy_meters" json:"location_accuracy_meters"`
+	LocationVerificationStatus string             `db:"location_verification_status" json:"location_verification_status"`
+	Remarks                    pgtype.Text        `db:"remarks" json:"remarks"`
+	Metadata                   []byte             `db:"metadata" json:"metadata"`
+	Inactive                   bool               `db:"inactive" json:"inactive"`
+	CreatedAt                  pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	CreatedBy                  pgtype.UUID        `db:"created_by" json:"created_by"`
+	UpdatedAt                  pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	UpdatedBy                  pgtype.UUID        `db:"updated_by" json:"updated_by"`
+}
+
 type HrmsBenefitClaim struct {
 	ID                     uuid.UUID          `db:"id" json:"id"`
 	TenantID               uuid.UUID          `db:"tenant_id" json:"tenant_id"`
