@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ranakdinesh/spur-hrms/core/ports"
+	"github.com/ranakdinesh/spur-hrms/pkg/permissions"
 )
 
 func (h *Handler) PunchAttendance(w http.ResponseWriter, r *http.Request) {
@@ -86,6 +87,12 @@ func (h *Handler) punchAttendanceForTenant(w http.ResponseWriter, r *http.Reques
 			cmd.UserID = *actorID
 		}
 	}
+	if !h.requireOwnUserOrPermission(w, r, operation, cmd.UserID,
+		[]string{permissions.AttendanceSelfPunch, permissions.AttendanceCheckIn, permissions.AttendanceCheckOut},
+		[]string{permissions.AttendanceOperationsManage},
+	) {
+		return
+	}
 	if cmd.Action == "" {
 		h.respondError(w, r, http.StatusBadRequest, operation, nil, "attendance action is required")
 		return
@@ -116,6 +123,12 @@ func (h *Handler) listAttendancesForTenant(w http.ResponseWriter, r *http.Reques
 	} else if actorID := h.actorIDFromRequest(r); actorID != nil {
 		userID = *actorID
 	}
+	if !h.requireOwnUserOrPermission(w, r, operation, userID,
+		[]string{permissions.AttendanceSelfView, permissions.AttendanceList, permissions.AttendanceView},
+		[]string{permissions.AttendanceOperationsView},
+	) {
+		return
+	}
 	if date := query.Get("date"); date != "" {
 		items, err := h.svc.ListAttendancesByUserDate(r.Context(), tenantID, userID, date)
 		if err != nil {
@@ -138,6 +151,20 @@ func (h *Handler) listAttendanceDailyStatusesForTenant(w http.ResponseWriter, r 
 	if !ok {
 		return
 	}
+	if query.UserID == nil {
+		if actorID := h.actorIDFromRequest(r); actorID != nil && !h.hasAnyPermission(r, permissions.AttendanceOperationsView) && !h.isSuperAdminRequest(r) {
+			query.UserID = actorID
+		}
+	}
+	if query.UserID != nil && !h.requireOwnUserOrPermission(w, r, operation, *query.UserID,
+		[]string{permissions.AttendanceSelfView, permissions.AttendanceList, permissions.AttendanceView},
+		[]string{permissions.AttendanceOperationsView},
+	) {
+		return
+	}
+	if query.UserID == nil && !h.requirePermission(w, r, operation, permissions.AttendanceOperationsView) {
+		return
+	}
 	items, err := h.svc.ListAttendanceDailyStatuses(r.Context(), query)
 	if err != nil {
 		h.respondError(w, r, http.StatusInternalServerError, operation, err, "failed to resolve attendance status")
@@ -149,6 +176,20 @@ func (h *Handler) listAttendanceDailyStatusesForTenant(w http.ResponseWriter, r 
 func (h *Handler) getAttendanceStatusSummaryForTenant(w http.ResponseWriter, r *http.Request, tenantID uuid.UUID, operation string) {
 	query, ok := h.attendanceStatusQuery(w, r, tenantID, operation)
 	if !ok {
+		return
+	}
+	if query.UserID == nil {
+		if actorID := h.actorIDFromRequest(r); actorID != nil && !h.hasAnyPermission(r, permissions.AttendanceOperationsView) && !h.isSuperAdminRequest(r) {
+			query.UserID = actorID
+		}
+	}
+	if query.UserID != nil && !h.requireOwnUserOrPermission(w, r, operation, *query.UserID,
+		[]string{permissions.AttendanceSelfView, permissions.AttendanceList, permissions.AttendanceView},
+		[]string{permissions.AttendanceOperationsView},
+	) {
+		return
+	}
+	if query.UserID == nil && !h.requirePermission(w, r, operation, permissions.AttendanceOperationsView) {
 		return
 	}
 	summary, err := h.svc.GetAttendanceStatusSummary(r.Context(), query)

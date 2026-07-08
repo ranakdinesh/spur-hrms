@@ -213,6 +213,30 @@ func (h *Handler) hasPermission(r *http.Request, permission string) bool {
 	return false
 }
 
+func (h *Handler) hasAnyPermission(r *http.Request, permissions ...string) bool {
+	for _, permission := range permissions {
+		if h.hasPermission(r, permission) {
+			return true
+		}
+	}
+	return false
+}
+
+func (h *Handler) requireOwnUserOrPermission(w http.ResponseWriter, r *http.Request, operation string, targetUserID uuid.UUID, selfPermissions []string, operationsPermissions []string) bool {
+	if h.isSuperAdminRequest(r) {
+		return true
+	}
+	if h.hasAnyPermission(r, operationsPermissions...) {
+		return true
+	}
+	actorID := h.actorIDFromRequest(r)
+	if actorID != nil && *actorID == targetUserID && h.hasAnyPermission(r, selfPermissions...) {
+		return true
+	}
+	h.respondError(w, r, http.StatusForbidden, operation, nil, "permission required")
+	return false
+}
+
 func (h *Handler) respondError(w http.ResponseWriter, r *http.Request, status int, operation string, err error, msg string) {
 	h.logRequestFailure(r, status, operation, err)
 	respondError(w, status, msg)

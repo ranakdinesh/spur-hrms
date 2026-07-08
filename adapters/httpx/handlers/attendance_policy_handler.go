@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/ranakdinesh/spur-hrms/core/domain"
 	"github.com/ranakdinesh/spur-hrms/core/ports"
+	"github.com/ranakdinesh/spur-hrms/pkg/permissions"
 )
 
 func (h *Handler) CreateAttendancePolicy(w http.ResponseWriter, r *http.Request) {
@@ -411,6 +412,12 @@ func (h *Handler) createAttendanceRequestForTenant(w http.ResponseWriter, r *htt
 			cmd.UserID = *actor
 		}
 	}
+	if !h.requireOwnUserOrPermission(w, r, operation, cmd.UserID,
+		[]string{permissions.AttendanceSelfRegularize, permissions.AttendanceRegularize},
+		[]string{permissions.AttendanceOperationsManage},
+	) {
+		return
+	}
 	cmd.ActorID = h.actorIDFromRequest(r)
 	item, err := h.svc.CreateAttendanceRequest(r.Context(), cmd)
 	if err != nil {
@@ -427,7 +434,33 @@ func (h *Handler) listAttendanceRequestsForTenant(w http.ResponseWriter, r *http
 			h.respondError(w, r, http.StatusBadRequest, operation, err, "invalid user_id")
 			return
 		}
+		if !h.requireOwnUserOrPermission(w, r, operation, userID,
+			[]string{permissions.AttendanceSelfView, permissions.AttendanceSelfRegularize, permissions.AttendanceList, permissions.AttendanceView},
+			[]string{permissions.AttendanceOperationsView},
+		) {
+			return
+		}
 		items, err := h.svc.ListAttendanceRequestsByUser(r.Context(), tenantID, userID)
+		if err != nil {
+			h.respondError(w, r, http.StatusInternalServerError, operation, err, "failed to list requests")
+			return
+		}
+		respondJSON(w, http.StatusOK, items)
+		return
+	}
+	if !h.hasAnyPermission(r, permissions.AttendanceOperationsView) && !h.isSuperAdminRequest(r) {
+		actor := h.actorIDFromRequest(r)
+		if actor == nil {
+			h.respondError(w, r, http.StatusForbidden, operation, nil, "permission required")
+			return
+		}
+		if !h.requireOwnUserOrPermission(w, r, operation, *actor,
+			[]string{permissions.AttendanceSelfView, permissions.AttendanceSelfRegularize, permissions.AttendanceList, permissions.AttendanceView},
+			[]string{permissions.AttendanceOperationsView},
+		) {
+			return
+		}
+		items, err := h.svc.ListAttendanceRequestsByUser(r.Context(), tenantID, *actor)
 		if err != nil {
 			h.respondError(w, r, http.StatusInternalServerError, operation, err, "failed to list requests")
 			return
@@ -443,6 +476,9 @@ func (h *Handler) listAttendanceRequestsForTenant(w http.ResponseWriter, r *http
 	respondJSON(w, http.StatusOK, items)
 }
 func (h *Handler) reviewAttendanceRequestForTenant(w http.ResponseWriter, r *http.Request, tenantID uuid.UUID, operation string) {
+	if !h.requirePermission(w, r, operation, permissions.AttendanceReviewRequest) {
+		return
+	}
 	var cmd ports.AttendanceReviewCommand
 	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
 		h.respondError(w, r, http.StatusBadRequest, operation, err, "invalid request body")

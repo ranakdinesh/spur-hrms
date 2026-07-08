@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/ranakdinesh/spur-hrms/core/ports"
+	"github.com/ranakdinesh/spur-hrms/pkg/permissions"
 )
 
 func (h *Handler) ListLeaveApprovalWorkflows(w http.ResponseWriter, r *http.Request) {
@@ -293,6 +294,12 @@ func (h *Handler) listLeaveApprovalsForTenant(w http.ResponseWriter, r *http.Req
 		h.respondError(w, r, http.StatusBadRequest, operation, nil, "approver_id is required")
 		return
 	}
+	if !h.requireOwnUserOrPermission(w, r, operation, *approverID,
+		[]string{permissions.LeavesApprove, permissions.LeaveOperationsView},
+		[]string{permissions.LeaveOperationsView},
+	) {
+		return
+	}
 	items, err := h.svc.ListPendingApprovalsByApprover(r.Context(), tenantID, *approverID)
 	if err != nil {
 		h.respondError(w, r, http.StatusInternalServerError, operation, err, "failed to list leave approvals")
@@ -357,6 +364,12 @@ func (h *Handler) cancelLeaveForTenant(w http.ResponseWriter, r *http.Request, t
 		if actorID := h.actorIDFromRequest(r); actorID != nil {
 			cmd.UserID = *actorID
 		}
+	}
+	if !h.requireOwnUserOrPermission(w, r, operation, cmd.UserID,
+		[]string{permissions.LeaveSelfApply, permissions.LeavesApply},
+		[]string{permissions.LeaveOperationsManage},
+	) {
+		return
 	}
 	cmd.ActorID = h.actorIDFromRequest(r)
 	item, err := h.svc.CancelLeave(r.Context(), cmd)

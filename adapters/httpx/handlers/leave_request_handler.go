@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/ranakdinesh/spur-hrms/core/domain"
 	"github.com/ranakdinesh/spur-hrms/core/ports"
+	"github.com/ranakdinesh/spur-hrms/pkg/permissions"
 )
 
 func (h *Handler) ApplyLeave(w http.ResponseWriter, r *http.Request) {
@@ -26,6 +27,15 @@ func (h *Handler) ListLeaves(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.listLeavesForTenant(w, r, tenantID, "list leaves")
+}
+
+func (h *Handler) PreviewLeave(w http.ResponseWriter, r *http.Request) {
+	tenantID, err := h.tenantIDFromRequest(r)
+	if err != nil {
+		h.respondError(w, r, http.StatusUnauthorized, "preview leave", err, "tenant context is required")
+		return
+	}
+	h.previewLeaveForTenant(w, r, tenantID, "preview leave")
 }
 
 func (h *Handler) ListLeaveReport(w http.ResponseWriter, r *http.Request) {
@@ -74,6 +84,13 @@ func (h *Handler) GetTenantLeaveReportSummary(w http.ResponseWriter, r *http.Req
 	}
 }
 
+func (h *Handler) PreviewTenantLeave(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := h.superAdminTenantID(w, r, "preview tenant leave")
+	if ok {
+		h.previewLeaveForTenant(w, r, tenantID, "preview tenant leave")
+	}
+}
+
 func (h *Handler) applyLeaveForTenant(w http.ResponseWriter, r *http.Request, tenantID uuid.UUID, operation string) {
 	var cmd ports.ApplyLeaveCommand
 	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
@@ -86,6 +103,12 @@ func (h *Handler) applyLeaveForTenant(w http.ResponseWriter, r *http.Request, te
 			cmd.UserID = *actorID
 		}
 	}
+	if !h.requireOwnUserOrPermission(w, r, operation, cmd.UserID,
+		[]string{permissions.LeaveSelfApply, permissions.LeavesApply},
+		[]string{permissions.LeaveOperationsManage},
+	) {
+		return
+	}
 	cmd.ActorID = h.actorIDFromRequest(r)
 	item, err := h.svc.ApplyLeave(r.Context(), cmd)
 	if err != nil {
@@ -95,8 +118,37 @@ func (h *Handler) applyLeaveForTenant(w http.ResponseWriter, r *http.Request, te
 	respondJSON(w, http.StatusCreated, item)
 }
 
+func (h *Handler) previewLeaveForTenant(w http.ResponseWriter, r *http.Request, tenantID uuid.UUID, operation string) {
+	var cmd ports.ApplyLeaveCommand
+	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
+		h.respondError(w, r, http.StatusBadRequest, "decode "+operation+" request", err, "invalid request body")
+		return
+	}
+	cmd.TenantID = tenantID
+	if cmd.UserID == uuid.Nil {
+		if actorID := h.actorIDFromRequest(r); actorID != nil {
+			cmd.UserID = *actorID
+		}
+	}
+	if !h.requireOwnUserOrPermission(w, r, operation, cmd.UserID,
+		[]string{permissions.LeaveSelfView, permissions.LeaveSelfApply, permissions.LeavesView, permissions.LeavesApply},
+		[]string{permissions.LeaveOperationsView},
+	) {
+		return
+	}
+	item, err := h.svc.PreviewLeave(r.Context(), cmd)
+	if err != nil {
+		h.respondError(w, r, http.StatusBadRequest, operation, err, err.Error())
+		return
+	}
+	respondJSON(w, http.StatusOK, item)
+}
+
 func (h *Handler) listLeavesForTenant(w http.ResponseWriter, r *http.Request, tenantID uuid.UUID, operation string) {
 	if fyRaw := r.URL.Query().Get("fy_id"); fyRaw != "" {
+		if !h.requirePermission(w, r, operation, permissions.LeaveOperationsView) {
+			return
+		}
 		fyID, err := uuid.Parse(fyRaw)
 		if err != nil {
 			h.respondError(w, r, http.StatusBadRequest, "parse fy id", err, "invalid fy_id")
@@ -121,6 +173,12 @@ func (h *Handler) listLeavesForTenant(w http.ResponseWriter, r *http.Request, te
 		}
 	} else if actorID := h.actorIDFromRequest(r); actorID != nil {
 		userID = *actorID
+	}
+	if !h.requireOwnUserOrPermission(w, r, operation, userID,
+		[]string{permissions.LeaveSelfView, permissions.LeavesList, permissions.LeavesView},
+		[]string{permissions.LeaveOperationsView},
+	) {
+		return
 	}
 	items, err := h.svc.ListLeavesByUser(r.Context(), tenantID, userID)
 	if err != nil {

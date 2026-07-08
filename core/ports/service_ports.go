@@ -396,6 +396,7 @@ type TenantService interface {
 	AdjustLeaveBalance(ctx context.Context, cmd LeaveBalanceAdjustmentCommand) (*domain.LeaveBalance, error)
 	ListLeaveLedgerByUser(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID) ([]*domain.LeaveLedgerEntry, error)
 	RunLeaveAccrual(ctx context.Context, cmd RunLeaveAccrualCommand) ([]*domain.LeaveLedgerEntry, error)
+	PreviewLeave(ctx context.Context, cmd ApplyLeaveCommand) (*domain.LeavePreview, error)
 	ApplyLeave(ctx context.Context, cmd ApplyLeaveCommand) (*domain.LeaveApplication, error)
 	ListLeavesByUser(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID) ([]*domain.Leave, error)
 	ListLeavesByFY(ctx context.Context, tenantID uuid.UUID, fyID uuid.UUID) ([]*domain.Leave, error)

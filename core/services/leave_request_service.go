@@ -3,12 +3,196 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/ranakdinesh/spur-hrms/core/domain"
 	"github.com/ranakdinesh/spur-hrms/core/ports"
 )
+
+func (s *TenantService) PreviewLeave(ctx context.Context, cmd ports.ApplyLeaveCommand) (*domain.LeavePreview, error) {
+	startDate, endDate, err := parseLeaveDateRange(cmd.StartDate, cmd.EndDate)
+	if err != nil {
+		s.logError("parse preview leave dates", err, serviceTenantIDField(cmd.TenantID))
+		return nil, err
+	}
+	if cmd.StartDayType == "" {
+		cmd.StartDayType = domain.LeaveDayFullDay
+	}
+	if cmd.EndDayType == "" {
+		cmd.EndDayType = domain.LeaveDayFullDay
+	}
+	baseDays, err := domain.CalculateLeaveDays(startDate, endDate, cmd.StartDayType, cmd.EndDayType)
+	if err != nil {
+		s.logError("calculate preview leave days", err, serviceTenantIDField(cmd.TenantID), serviceStringField("user_id", cmd.UserID.String()))
+		return nil, err
+	}
+	var fy *domain.FinancialYear
+	if cmd.FYID == uuid.Nil {
+		fy, err = s.financialYears.GetActiveFinancialYear(ctx, cmd.TenantID)
+		if err != nil {
+			s.logError("resolve preview leave active financial year", err, serviceTenantIDField(cmd.TenantID))
+			return nil, err
+		}
+		cmd.FYID = fy.ID
+	} else {
+		fy, err = s.financialYears.GetFinancialYear(ctx, cmd.TenantID, cmd.FYID)
+		if err != nil {
+			s.logError("validate preview leave financial year", err, serviceTenantIDField(cmd.TenantID), serviceStringField("financial_year_id", cmd.FYID.String()))
+			return nil, err
+		}
+	}
+	if startDate.Before(fy.StartDate) || endDate.After(fy.EndDate) {
+		err := domain.ErrLeaveDatesOutsideFY
+		s.logError("validate preview leave dates within fy", err, serviceTenantIDField(cmd.TenantID), serviceStringField("financial_year_id", cmd.FYID.String()))
+		return nil, err
+	}
+	employee, err := s.employees.GetEmployeeByUserID(ctx, cmd.TenantID, cmd.UserID)
+	if err != nil {
+		s.logError("validate preview leave employee", err, serviceTenantIDField(cmd.TenantID), serviceStringField("user_id", cmd.UserID.String()))
+		return nil, err
+	}
+	leaveType, err := s.leaveTypes.GetLeaveType(ctx, cmd.TenantID, cmd.LeaveTypeID)
+	if err != nil {
+		s.logError("validate preview leave type", err, serviceTenantIDField(cmd.TenantID), serviceStringField("leave_type_id", cmd.LeaveTypeID.String()))
+		return nil, err
+	}
+	preview := &domain.LeavePreview{
+		TenantID:     cmd.TenantID,
+		UserID:       cmd.UserID,
+		LeaveTypeID:  cmd.LeaveTypeID,
+		FYID:         cmd.FYID,
+		StartDate:    startDate.Format("2006-01-02"),
+		EndDate:      endDate.Format("2006-01-02"),
+		StartDayType: cmd.StartDayType,
+		EndDayType:   cmd.EndDayType,
+		BaseDays:     baseDays,
+		TotalDays:    baseDays,
+		PaidLeave:    leaveType.IsPaid,
+		Allowed:      true,
+		Warnings:     []string{},
+	}
+	if !leaveType.IsEnabled {
+		preview.Allowed = false
+		preview.BlockingReasons = append(preview.BlockingReasons, domain.ErrLeaveTypeDisabled.Error())
+	}
+	if employee.IsOnProbation(startDate) && isEarnedLeaveType(leaveType) {
+		preview.Allowed = false
+		preview.BlockingReasons = append(preview.BlockingReasons, domain.ErrLeaveProbationRestricted.Error())
+	}
+	templateRule, err := s.findApplicableLeaveRule(ctx, cmd.TenantID, employee, leaveType, cmd.FYID, startDate)
+	if err != nil {
+		s.logError("resolve preview leave policy rule", err, serviceTenantIDField(cmd.TenantID), serviceStringField("leave_type_id", cmd.LeaveTypeID.String()))
+		return nil, err
+	}
+	policy, err := s.leavePolicies.GetLeavePolicyByTypeAndFY(ctx, cmd.TenantID, cmd.LeaveTypeID, cmd.FYID)
+	if err != nil && !errors.Is(err, domain.ErrLeavePolicyNotFound) {
+		s.logError("load preview leave policy", err, serviceTenantIDField(cmd.TenantID), serviceStringField("leave_type_id", cmd.LeaveTypeID.String()))
+		return nil, err
+	}
+	if policy != nil && policy.IsSandwichApplicable {
+		holidays, err := s.holidays.ListHolidaysByDateRange(ctx, cmd.TenantID, startDate, endDate)
+		if err != nil {
+			s.logError("list preview leave sandwich holidays", err, serviceTenantIDField(cmd.TenantID))
+			return nil, err
+		}
+		holidayDates := make([]time.Time, 0, len(holidays))
+		for _, holiday := range holidays {
+			if !holiday.IsOptional {
+				holidayDates = append(holidayDates, holiday.Date)
+			}
+		}
+		isSandwich, extraDays := domain.IsSandwich(startDate, endDate, holidayDates, []time.Weekday{time.Saturday, time.Sunday})
+		preview.IsSandwich = isSandwich
+		preview.SandwichDays = extraDays
+		preview.TotalDays += extraDays
+		if isSandwich && extraDays > 0 {
+			preview.Warnings = append(preview.Warnings, fmt.Sprintf("Sandwich rule adds %.1f non-working day(s).", extraDays))
+		}
+	}
+	effective, err := s.ResolveEmployeeLeavePolicySet(ctx, cmd.TenantID, cmd.UserID, startDate.Format("2006-01-02"), nil)
+	if err == nil && effective != nil {
+		preview.EffectivePolicy = effective.Policy
+		for _, rule := range effective.LeaveRules {
+			if rule.LeaveTypeID == cmd.LeaveTypeID {
+				preview.EffectiveLeaveRule = rule
+				preview.PayrollImpact = rule.PayrollImpact
+				if rule.AttachmentRequiredAfterDays != nil && preview.TotalDays > *rule.AttachmentRequiredAfterDays {
+					preview.RequiresAttachment = true
+					preview.AttachmentRequiredAfterDays = rule.AttachmentRequiredAfterDays
+					preview.Warnings = append(preview.Warnings, "Attachment is required for this leave duration.")
+				}
+				if rule.NoticeRequiredAfterDays != nil && preview.TotalDays > *rule.NoticeRequiredAfterDays && rule.NoticeDays > 0 {
+					preview.NoticeRequired = true
+					preview.NoticeDays = rule.NoticeDays
+					leadDays := int32(startDate.Sub(time.Now().UTC().Truncate(24*time.Hour)).Hours() / 24)
+					if leadDays < rule.NoticeDays {
+						preview.Allowed = false
+						preview.BlockingReasons = append(preview.BlockingReasons, fmt.Sprintf("This leave requires %d day(s) advance notice.", rule.NoticeDays))
+					}
+				}
+				break
+			}
+		}
+	}
+	leave, err := domain.NewLeaveApplication(cmd.TenantID, cmd.UserID, cmd.LeaveTypeID, cmd.FYID, startDate, endDate, cmd.StartDayType, cmd.EndDayType, cmd.Reason, preview.TotalDays, preview.IsSandwich)
+	if err != nil {
+		s.logError("validate preview leave", err, serviceTenantIDField(cmd.TenantID), serviceStringField("user_id", cmd.UserID.String()))
+		return nil, err
+	}
+	if err := validateLeaveRequestAgainstRule(leave, templateRule); err != nil {
+		preview.Allowed = false
+		preview.BlockingReasons = append(preview.BlockingReasons, err.Error())
+	}
+	overlaps, err := s.leaveRequests.ListOverlappingLeaves(ctx, cmd.TenantID, cmd.UserID, cmd.StartDate, cmd.EndDate)
+	if err != nil {
+		s.logError("list preview leave overlaps", err, serviceTenantIDField(cmd.TenantID), serviceStringField("user_id", cmd.UserID.String()))
+		return nil, err
+	}
+	for _, existing := range overlaps {
+		overlaps, err := domain.LeavesOverlap(leave, existing)
+		if err != nil {
+			s.logError("validate preview leave overlap mask", err, serviceTenantIDField(cmd.TenantID), serviceStringField("leave_id", existing.ID.String()))
+			return nil, err
+		}
+		if overlaps {
+			preview.Allowed = false
+			preview.BlockingReasons = append(preview.BlockingReasons, domain.ErrLeaveOverlap.Error())
+			break
+		}
+	}
+	if leaveType.IsPaid {
+		balances, err := s.leaveBalances.ListLeaveBalancesByUser(ctx, cmd.TenantID, cmd.UserID)
+		if err != nil {
+			s.logError("list preview leave balances", err, serviceTenantIDField(cmd.TenantID), serviceStringField("user_id", cmd.UserID.String()))
+			return nil, err
+		}
+		var balance *domain.LeaveBalance
+		for _, item := range balances {
+			if item.LeaveTypeID == cmd.LeaveTypeID && item.FYID == cmd.FYID {
+				balance = item
+				break
+			}
+		}
+		if balance != nil {
+			preview.BalanceBefore = balance.BalanceDays
+			preview.PendingBefore = balance.PendingDays
+			preview.UsedBefore = balance.UsedDays
+		}
+		preview.BalanceAfter = preview.BalanceBefore - preview.TotalDays
+		preview.PendingAfter = preview.PendingBefore + preview.TotalDays
+		negativeAllowance := 0.0
+		if templateRule != nil && templateRule.NegativeBalanceAllowed {
+			negativeAllowance = templateRule.MaxNegativeBalance
+		}
+		if preview.BalanceBefore+negativeAllowance < preview.TotalDays {
+			preview.Allowed = false
+			preview.BlockingReasons = append(preview.BlockingReasons, domain.ErrLeaveBalanceInsufficient.Error())
+		}
+	}
+	return preview, nil
+}
 
 func (s *TenantService) ApplyLeave(ctx context.Context, cmd ports.ApplyLeaveCommand) (*domain.LeaveApplication, error) {
 	startDate, endDate, err := parseLeaveDateRange(cmd.StartDate, cmd.EndDate)
