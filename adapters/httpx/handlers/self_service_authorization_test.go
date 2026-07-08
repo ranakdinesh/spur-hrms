@@ -23,6 +23,9 @@ type selfServiceTenantService struct {
 	createSegmentCalled    bool
 	listSegmentsCalled     bool
 	attendanceStatusCalled bool
+	createCompOffCalled    bool
+	listCompOffCalled      bool
+	reviewCompOffCalled    bool
 	gotUserID              uuid.UUID
 	gotApproverID          uuid.UUID
 	gotAttendanceUserID    *uuid.UUID
@@ -74,6 +77,23 @@ func (s *selfServiceTenantService) ListAttendanceDailyStatuses(ctx context.Conte
 	s.attendanceStatusCalled = true
 	s.gotAttendanceUserID = query.UserID
 	return []*domain.AttendanceDailyStatus{}, nil
+}
+
+func (s *selfServiceTenantService) CreateCompOffRequest(ctx context.Context, cmd ports.CompOffRequestCommand) (*domain.CompOffRequest, error) {
+	s.createCompOffCalled = true
+	s.gotUserID = cmd.UserID
+	return &domain.CompOffRequest{ID: uuid.New(), TenantID: cmd.TenantID, UserID: cmd.UserID, Status: domain.CompOffStatusPending, RequestedDays: cmd.RequestedDays}, nil
+}
+
+func (s *selfServiceTenantService) ListCompOffRequestsByUser(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID) ([]*domain.CompOffRequest, error) {
+	s.listCompOffCalled = true
+	s.gotUserID = userID
+	return []*domain.CompOffRequest{}, nil
+}
+
+func (s *selfServiceTenantService) ReviewCompOffRequest(ctx context.Context, cmd ports.CompOffReviewCommand) (*domain.CompOffRequest, error) {
+	s.reviewCompOffCalled = true
+	return &domain.CompOffRequest{ID: cmd.RequestID, TenantID: cmd.TenantID, Status: cmd.Status}, nil
 }
 
 func TestEmployeeCannotListOtherUserLeaves(t *testing.T) {
@@ -334,5 +354,110 @@ func TestEmployeeCannotListOtherUserAttendanceSegments(t *testing.T) {
 	}
 	if svc.listSegmentsCalled {
 		t.Fatal("service should not be called for other user's attendance segments")
+	}
+}
+
+func TestEmployeeCanCreateOwnCompOffRequest(t *testing.T) {
+	tenantID := uuid.New()
+	actorID := uuid.New()
+	svc := &selfServiceTenantService{}
+	handler := New(
+		svc,
+		func(context.Context) string { return tenantID.String() },
+		func(context.Context) uuid.UUID { return actorID },
+		func(context.Context) bool { return false },
+		nil,
+	)
+	body := []byte(`{"work_date":"2026-07-08","worked_minutes":480,"requested_days":1,"reason":"Worked on weekly off"}`)
+	request := httptest.NewRequest(http.MethodPost, "/hrms/comp-off-requests", bytes.NewReader(body))
+	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.LeaveSelfCompOffRequest}))
+	recorder := httptest.NewRecorder()
+
+	handler.CreateCompOffRequest(recorder, request)
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusCreated, recorder.Body.String())
+	}
+	if !svc.createCompOffCalled || svc.gotUserID != actorID {
+		t.Fatalf("comp-off user = %s called=%t, want actor %s", svc.gotUserID, svc.createCompOffCalled, actorID)
+	}
+}
+
+func TestEmployeeCannotCreateOtherUserCompOffRequest(t *testing.T) {
+	tenantID := uuid.New()
+	actorID := uuid.New()
+	otherID := uuid.New()
+	svc := &selfServiceTenantService{}
+	handler := New(
+		svc,
+		func(context.Context) string { return tenantID.String() },
+		func(context.Context) uuid.UUID { return actorID },
+		func(context.Context) bool { return false },
+		nil,
+	)
+	body := []byte(`{"user_id":"` + otherID.String() + `","work_date":"2026-07-08","worked_minutes":480,"requested_days":1}`)
+	request := httptest.NewRequest(http.MethodPost, "/hrms/comp-off-requests", bytes.NewReader(body))
+	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.LeaveSelfCompOffRequest}))
+	recorder := httptest.NewRecorder()
+
+	handler.CreateCompOffRequest(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusForbidden, recorder.Body.String())
+	}
+	if svc.createCompOffCalled {
+		t.Fatal("service should not be called for other user's comp-off request")
+	}
+}
+
+func TestEmployeeCannotListOtherUserCompOffRequests(t *testing.T) {
+	tenantID := uuid.New()
+	actorID := uuid.New()
+	otherID := uuid.New()
+	svc := &selfServiceTenantService{}
+	handler := New(
+		svc,
+		func(context.Context) string { return tenantID.String() },
+		func(context.Context) uuid.UUID { return actorID },
+		func(context.Context) bool { return false },
+		nil,
+	)
+	request := httptest.NewRequest(http.MethodGet, "/hrms/comp-off-requests?user_id="+otherID.String(), nil)
+	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.LeaveSelfCompOffRequest}))
+	recorder := httptest.NewRecorder()
+
+	handler.ListCompOffRequests(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusForbidden, recorder.Body.String())
+	}
+	if svc.listCompOffCalled {
+		t.Fatal("service should not be called for other user's comp-off requests")
+	}
+}
+
+func TestEmployeeCannotApproveCompOffRequest(t *testing.T) {
+	tenantID := uuid.New()
+	actorID := uuid.New()
+	requestID := uuid.New()
+	svc := &selfServiceTenantService{}
+	handler := New(
+		svc,
+		func(context.Context) string { return tenantID.String() },
+		func(context.Context) uuid.UUID { return actorID },
+		func(context.Context) bool { return false },
+		nil,
+	)
+	request := httptest.NewRequest(http.MethodPost, "/hrms/comp-off-requests/"+requestID.String()+"/approve", bytes.NewReader([]byte(`{}`)))
+	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.LeaveSelfCompOffRequest}))
+	recorder := httptest.NewRecorder()
+
+	handler.reviewCompOffRequestForTenant(recorder, request, tenantID, requestID, "approve comp-off request", domain.CompOffStatusApproved)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusForbidden, recorder.Body.String())
+	}
+	if svc.reviewCompOffCalled {
+		t.Fatal("service should not be called for employee comp-off approval")
 	}
 }

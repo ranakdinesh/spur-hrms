@@ -985,25 +985,34 @@ type HrmsCommunicationProviderSetting struct {
 }
 
 type HrmsCompOffRequest struct {
-	ID          uuid.UUID          `db:"id" json:"id"`
-	TenantID    uuid.UUID          `db:"tenant_id" json:"tenant_id"`
-	UserID      uuid.UUID          `db:"user_id" json:"user_id"`
-	LeaveTypeID uuid.UUID          `db:"leave_type_id" json:"leave_type_id"`
-	FyID        uuid.UUID          `db:"fy_id" json:"fy_id"`
-	WorkDate    pgtype.Date        `db:"work_date" json:"work_date"`
-	WorkedHours pgtype.Numeric     `db:"worked_hours" json:"worked_hours"`
-	CreditDays  pgtype.Numeric     `db:"credit_days" json:"credit_days"`
-	Multiplier  pgtype.Numeric     `db:"multiplier" json:"multiplier"`
-	Reason      pgtype.Text        `db:"reason" json:"reason"`
-	Status      string             `db:"status" json:"status"`
-	ReviewedBy  pgtype.UUID        `db:"reviewed_by" json:"reviewed_by"`
-	ReviewedAt  pgtype.Timestamptz `db:"reviewed_at" json:"reviewed_at"`
-	Remarks     pgtype.Text        `db:"remarks" json:"remarks"`
-	Inactive    bool               `db:"inactive" json:"inactive"`
-	CreatedAt   pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	CreatedBy   pgtype.UUID        `db:"created_by" json:"created_by"`
-	UpdatedAt   pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
-	UpdatedBy   pgtype.UUID        `db:"updated_by" json:"updated_by"`
+	ID                 uuid.UUID          `db:"id" json:"id"`
+	TenantID           uuid.UUID          `db:"tenant_id" json:"tenant_id"`
+	UserID             uuid.UUID          `db:"user_id" json:"user_id"`
+	LeaveTypeID        uuid.UUID          `db:"leave_type_id" json:"leave_type_id"`
+	FyID               uuid.UUID          `db:"fy_id" json:"fy_id"`
+	WorkDate           pgtype.Date        `db:"work_date" json:"work_date"`
+	WorkedHours        pgtype.Numeric     `db:"worked_hours" json:"worked_hours"`
+	CreditDays         pgtype.Numeric     `db:"credit_days" json:"credit_days"`
+	Multiplier         pgtype.Numeric     `db:"multiplier" json:"multiplier"`
+	Reason             pgtype.Text        `db:"reason" json:"reason"`
+	Status             string             `db:"status" json:"status"`
+	ReviewedBy         pgtype.UUID        `db:"reviewed_by" json:"reviewed_by"`
+	ReviewedAt         pgtype.Timestamptz `db:"reviewed_at" json:"reviewed_at"`
+	Remarks            pgtype.Text        `db:"remarks" json:"remarks"`
+	Inactive           bool               `db:"inactive" json:"inactive"`
+	CreatedAt          pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	CreatedBy          pgtype.UUID        `db:"created_by" json:"created_by"`
+	UpdatedAt          pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	UpdatedBy          pgtype.UUID        `db:"updated_by" json:"updated_by"`
+	WorkedMinutes      int32              `db:"worked_minutes" json:"worked_minutes"`
+	RequestedDays      pgtype.Numeric     `db:"requested_days" json:"requested_days"`
+	ApprovedDays       pgtype.Numeric     `db:"approved_days" json:"approved_days"`
+	ExpiryDate         pgtype.Date        `db:"expiry_date" json:"expiry_date"`
+	ReviewRemarks      pgtype.Text        `db:"review_remarks" json:"review_remarks"`
+	PayrollImpact      bool               `db:"payroll_impact" json:"payroll_impact"`
+	SourceAttendanceID pgtype.UUID        `db:"source_attendance_id" json:"source_attendance_id"`
+	SourceSegmentID    pgtype.UUID        `db:"source_segment_id" json:"source_segment_id"`
+	Metadata           []byte             `db:"metadata" json:"metadata"`
 }
 
 type HrmsCompanyPolicy struct {
