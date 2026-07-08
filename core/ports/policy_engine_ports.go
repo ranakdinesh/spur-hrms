@@ -15,10 +15,13 @@ type PolicyEngineRepo interface {
 	GetPolicySet(ctx context.Context, tenantID uuid.UUID, id uuid.UUID) (*domain.PolicySet, error)
 	DeletePolicySet(ctx context.Context, tenantID uuid.UUID, id uuid.UUID, actorID *uuid.UUID) error
 	CreatePolicyAssignment(ctx context.Context, item *domain.PolicyAssignment, actorID *uuid.UUID) (*domain.PolicyAssignment, error)
+	UpdatePolicyAssignment(ctx context.Context, item *domain.PolicyAssignment, actorID *uuid.UUID) (*domain.PolicyAssignment, error)
 	ListPolicyAssignments(ctx context.Context, tenantID uuid.UUID, policyKind string) ([]*domain.PolicyAssignment, error)
 	DeletePolicyAssignment(ctx context.Context, tenantID uuid.UUID, id uuid.UUID, actorID *uuid.UUID) error
 	CreateLeavePolicyRule(ctx context.Context, item *domain.LeavePolicyRule, actorID *uuid.UUID) (*domain.LeavePolicyRule, error)
+	UpdateLeavePolicyRule(ctx context.Context, item *domain.LeavePolicyRule, actorID *uuid.UUID) (*domain.LeavePolicyRule, error)
 	ListLeavePolicyRules(ctx context.Context, tenantID uuid.UUID, policySetID uuid.UUID) ([]*domain.LeavePolicyRule, error)
+	DeleteLeavePolicyRule(ctx context.Context, tenantID uuid.UUID, id uuid.UUID, actorID *uuid.UUID) error
 	ResolvePolicySet(ctx context.Context, subject domain.PolicyResolutionSubject, policyKind string) (*domain.PolicySet, error)
 	ListPolicyResolutionCandidates(ctx context.Context, subject domain.PolicyResolutionSubject, policyKind string) ([]domain.PolicyResolutionCandidate, error)
 }
@@ -39,6 +42,7 @@ type PolicySetCommand struct {
 }
 
 type PolicyAssignmentCommand struct {
+	ID            uuid.UUID  `json:"id,omitempty"`
 	TenantID      uuid.UUID  `json:"tenant_id"`
 	PolicySetID   uuid.UUID  `json:"policy_set_id"`
 	PolicyKind    string     `json:"policy_kind"`
@@ -53,6 +57,7 @@ type PolicyAssignmentCommand struct {
 }
 
 type LeavePolicyRuleCommand struct {
+	ID                           uuid.UUID       `json:"id,omitempty"`
 	TenantID                     uuid.UUID       `json:"tenant_id"`
 	PolicySetID                  uuid.UUID       `json:"policy_set_id"`
 	LeaveTypeID                  uuid.UUID       `json:"leave_type_id"`

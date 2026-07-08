@@ -46,6 +46,23 @@ INSERT INTO hrms.policy_assignments (
 )
 RETURNING *;
 
+-- name: UpdatePolicyAssignment :one
+UPDATE hrms.policy_assignments
+SET
+    policy_set_id = $3,
+    policy_kind = $4,
+    scope_type = $5,
+    scope_id = $6,
+    role_code = $7,
+    priority = $8,
+    effective_from = $9,
+    effective_to = $10,
+    is_active = $11,
+    updated_by = $12,
+    updated_at = NOW()
+WHERE tenant_id = $1 AND id = $2 AND NOT inactive
+RETURNING *;
+
 -- name: ListPolicyAssignments :many
 SELECT * FROM hrms.policy_assignments
 WHERE tenant_id = $1 AND policy_kind = $2 AND NOT inactive
@@ -84,6 +101,46 @@ RETURNING *;
 SELECT * FROM hrms.leave_policy_rules
 WHERE tenant_id = $1 AND policy_set_id = $2 AND NOT inactive
 ORDER BY created_at ASC;
+
+-- name: UpdateLeavePolicyRule :one
+UPDATE hrms.leave_policy_rules
+SET
+    policy_set_id = $3,
+    leave_type_id = $4,
+    grant_mode = $5,
+    accrual_frequency = $6,
+    entitlement_days = $7,
+    accrual_amount_per_period = $8,
+    prorate_joiners = $9,
+    probation_handling = $10,
+    rounding_rule = $11,
+    max_balance_cap = $12,
+    carry_forward_cap = $13,
+    encashment_eligible = $14,
+    negative_balance_allowed = $15,
+    insufficient_balance_action = $16,
+    expiry_days = $17,
+    allow_half_day = $18,
+    attachment_required_after_days = $19,
+    approval_workflow = $20,
+    sandwich_enabled = $21,
+    sandwich_include_weekly_off = $22,
+    sandwich_include_public_holiday = $23,
+    sandwich_same_leave_type_only = $24,
+    sandwich_across_leave_types = $25,
+    notice_required_after_days = $26,
+    notice_days = $27,
+    payroll_impact = $28,
+    rule_config = $29,
+    updated_by = $30,
+    updated_at = NOW()
+WHERE tenant_id = $1 AND id = $2 AND NOT inactive
+RETURNING *;
+
+-- name: SoftDeleteLeavePolicyRule :exec
+UPDATE hrms.leave_policy_rules
+SET inactive = TRUE, updated_by = $3, updated_at = NOW()
+WHERE tenant_id = $1 AND id = $2 AND NOT inactive;
 
 -- name: ResolvePolicySet :one
 WITH candidates AS (

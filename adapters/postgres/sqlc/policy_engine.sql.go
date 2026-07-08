@@ -694,6 +694,23 @@ func (q *Queries) ResolvePolicySet(ctx context.Context, arg ResolvePolicySetPara
 	return i, err
 }
 
+const softDeleteLeavePolicyRule = `-- name: SoftDeleteLeavePolicyRule :exec
+UPDATE hrms.leave_policy_rules
+SET inactive = TRUE, updated_by = $3, updated_at = NOW()
+WHERE tenant_id = $1 AND id = $2 AND NOT inactive
+`
+
+type SoftDeleteLeavePolicyRuleParams struct {
+	TenantID  uuid.UUID   `db:"tenant_id" json:"tenant_id"`
+	ID        uuid.UUID   `db:"id" json:"id"`
+	UpdatedBy pgtype.UUID `db:"updated_by" json:"updated_by"`
+}
+
+func (q *Queries) SoftDeleteLeavePolicyRule(ctx context.Context, arg SoftDeleteLeavePolicyRuleParams) error {
+	_, err := q.db.Exec(ctx, softDeleteLeavePolicyRule, arg.TenantID, arg.ID, arg.UpdatedBy)
+	return err
+}
+
 const softDeletePolicyAssignment = `-- name: SoftDeletePolicyAssignment :exec
 UPDATE hrms.policy_assignments
 SET inactive = TRUE, is_active = FALSE, updated_by = $3, updated_at = NOW()
@@ -726,6 +743,218 @@ type SoftDeletePolicySetParams struct {
 func (q *Queries) SoftDeletePolicySet(ctx context.Context, arg SoftDeletePolicySetParams) error {
 	_, err := q.db.Exec(ctx, softDeletePolicySet, arg.TenantID, arg.ID, arg.UpdatedBy)
 	return err
+}
+
+const updateLeavePolicyRule = `-- name: UpdateLeavePolicyRule :one
+UPDATE hrms.leave_policy_rules
+SET
+    policy_set_id = $3,
+    leave_type_id = $4,
+    grant_mode = $5,
+    accrual_frequency = $6,
+    entitlement_days = $7,
+    accrual_amount_per_period = $8,
+    prorate_joiners = $9,
+    probation_handling = $10,
+    rounding_rule = $11,
+    max_balance_cap = $12,
+    carry_forward_cap = $13,
+    encashment_eligible = $14,
+    negative_balance_allowed = $15,
+    insufficient_balance_action = $16,
+    expiry_days = $17,
+    allow_half_day = $18,
+    attachment_required_after_days = $19,
+    approval_workflow = $20,
+    sandwich_enabled = $21,
+    sandwich_include_weekly_off = $22,
+    sandwich_include_public_holiday = $23,
+    sandwich_same_leave_type_only = $24,
+    sandwich_across_leave_types = $25,
+    notice_required_after_days = $26,
+    notice_days = $27,
+    payroll_impact = $28,
+    rule_config = $29,
+    updated_by = $30,
+    updated_at = NOW()
+WHERE tenant_id = $1 AND id = $2 AND NOT inactive
+RETURNING id, tenant_id, policy_set_id, leave_type_id, grant_mode, accrual_frequency, entitlement_days, accrual_amount_per_period, prorate_joiners, probation_handling, rounding_rule, max_balance_cap, carry_forward_cap, encashment_eligible, negative_balance_allowed, insufficient_balance_action, expiry_days, allow_half_day, attachment_required_after_days, approval_workflow, sandwich_enabled, sandwich_include_weekly_off, sandwich_include_public_holiday, sandwich_same_leave_type_only, sandwich_across_leave_types, notice_required_after_days, notice_days, payroll_impact, rule_config, inactive, created_at, created_by, updated_at, updated_by
+`
+
+type UpdateLeavePolicyRuleParams struct {
+	TenantID                     uuid.UUID      `db:"tenant_id" json:"tenant_id"`
+	ID                           uuid.UUID      `db:"id" json:"id"`
+	PolicySetID                  uuid.UUID      `db:"policy_set_id" json:"policy_set_id"`
+	LeaveTypeID                  uuid.UUID      `db:"leave_type_id" json:"leave_type_id"`
+	GrantMode                    string         `db:"grant_mode" json:"grant_mode"`
+	AccrualFrequency             pgtype.Text    `db:"accrual_frequency" json:"accrual_frequency"`
+	EntitlementDays              pgtype.Numeric `db:"entitlement_days" json:"entitlement_days"`
+	AccrualAmountPerPeriod       pgtype.Numeric `db:"accrual_amount_per_period" json:"accrual_amount_per_period"`
+	ProrateJoiners               bool           `db:"prorate_joiners" json:"prorate_joiners"`
+	ProbationHandling            string         `db:"probation_handling" json:"probation_handling"`
+	RoundingRule                 string         `db:"rounding_rule" json:"rounding_rule"`
+	MaxBalanceCap                pgtype.Numeric `db:"max_balance_cap" json:"max_balance_cap"`
+	CarryForwardCap              pgtype.Numeric `db:"carry_forward_cap" json:"carry_forward_cap"`
+	EncashmentEligible           bool           `db:"encashment_eligible" json:"encashment_eligible"`
+	NegativeBalanceAllowed       bool           `db:"negative_balance_allowed" json:"negative_balance_allowed"`
+	InsufficientBalanceAction    string         `db:"insufficient_balance_action" json:"insufficient_balance_action"`
+	ExpiryDays                   pgtype.Int4    `db:"expiry_days" json:"expiry_days"`
+	AllowHalfDay                 bool           `db:"allow_half_day" json:"allow_half_day"`
+	AttachmentRequiredAfterDays  pgtype.Numeric `db:"attachment_required_after_days" json:"attachment_required_after_days"`
+	ApprovalWorkflow             []byte         `db:"approval_workflow" json:"approval_workflow"`
+	SandwichEnabled              bool           `db:"sandwich_enabled" json:"sandwich_enabled"`
+	SandwichIncludeWeeklyOff     bool           `db:"sandwich_include_weekly_off" json:"sandwich_include_weekly_off"`
+	SandwichIncludePublicHoliday bool           `db:"sandwich_include_public_holiday" json:"sandwich_include_public_holiday"`
+	SandwichSameLeaveTypeOnly    bool           `db:"sandwich_same_leave_type_only" json:"sandwich_same_leave_type_only"`
+	SandwichAcrossLeaveTypes     bool           `db:"sandwich_across_leave_types" json:"sandwich_across_leave_types"`
+	NoticeRequiredAfterDays      pgtype.Numeric `db:"notice_required_after_days" json:"notice_required_after_days"`
+	NoticeDays                   int32          `db:"notice_days" json:"notice_days"`
+	PayrollImpact                string         `db:"payroll_impact" json:"payroll_impact"`
+	RuleConfig                   []byte         `db:"rule_config" json:"rule_config"`
+	UpdatedBy                    pgtype.UUID    `db:"updated_by" json:"updated_by"`
+}
+
+func (q *Queries) UpdateLeavePolicyRule(ctx context.Context, arg UpdateLeavePolicyRuleParams) (HrmsLeavePolicyRule, error) {
+	row := q.db.QueryRow(ctx, updateLeavePolicyRule,
+		arg.TenantID,
+		arg.ID,
+		arg.PolicySetID,
+		arg.LeaveTypeID,
+		arg.GrantMode,
+		arg.AccrualFrequency,
+		arg.EntitlementDays,
+		arg.AccrualAmountPerPeriod,
+		arg.ProrateJoiners,
+		arg.ProbationHandling,
+		arg.RoundingRule,
+		arg.MaxBalanceCap,
+		arg.CarryForwardCap,
+		arg.EncashmentEligible,
+		arg.NegativeBalanceAllowed,
+		arg.InsufficientBalanceAction,
+		arg.ExpiryDays,
+		arg.AllowHalfDay,
+		arg.AttachmentRequiredAfterDays,
+		arg.ApprovalWorkflow,
+		arg.SandwichEnabled,
+		arg.SandwichIncludeWeeklyOff,
+		arg.SandwichIncludePublicHoliday,
+		arg.SandwichSameLeaveTypeOnly,
+		arg.SandwichAcrossLeaveTypes,
+		arg.NoticeRequiredAfterDays,
+		arg.NoticeDays,
+		arg.PayrollImpact,
+		arg.RuleConfig,
+		arg.UpdatedBy,
+	)
+	var i HrmsLeavePolicyRule
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.PolicySetID,
+		&i.LeaveTypeID,
+		&i.GrantMode,
+		&i.AccrualFrequency,
+		&i.EntitlementDays,
+		&i.AccrualAmountPerPeriod,
+		&i.ProrateJoiners,
+		&i.ProbationHandling,
+		&i.RoundingRule,
+		&i.MaxBalanceCap,
+		&i.CarryForwardCap,
+		&i.EncashmentEligible,
+		&i.NegativeBalanceAllowed,
+		&i.InsufficientBalanceAction,
+		&i.ExpiryDays,
+		&i.AllowHalfDay,
+		&i.AttachmentRequiredAfterDays,
+		&i.ApprovalWorkflow,
+		&i.SandwichEnabled,
+		&i.SandwichIncludeWeeklyOff,
+		&i.SandwichIncludePublicHoliday,
+		&i.SandwichSameLeaveTypeOnly,
+		&i.SandwichAcrossLeaveTypes,
+		&i.NoticeRequiredAfterDays,
+		&i.NoticeDays,
+		&i.PayrollImpact,
+		&i.RuleConfig,
+		&i.Inactive,
+		&i.CreatedAt,
+		&i.CreatedBy,
+		&i.UpdatedAt,
+		&i.UpdatedBy,
+	)
+	return i, err
+}
+
+const updatePolicyAssignment = `-- name: UpdatePolicyAssignment :one
+UPDATE hrms.policy_assignments
+SET
+    policy_set_id = $3,
+    policy_kind = $4,
+    scope_type = $5,
+    scope_id = $6,
+    role_code = $7,
+    priority = $8,
+    effective_from = $9,
+    effective_to = $10,
+    is_active = $11,
+    updated_by = $12,
+    updated_at = NOW()
+WHERE tenant_id = $1 AND id = $2 AND NOT inactive
+RETURNING id, tenant_id, policy_set_id, policy_kind, scope_type, scope_id, role_code, priority, effective_from, effective_to, is_active, inactive, created_at, created_by, updated_at, updated_by
+`
+
+type UpdatePolicyAssignmentParams struct {
+	TenantID      uuid.UUID   `db:"tenant_id" json:"tenant_id"`
+	ID            uuid.UUID   `db:"id" json:"id"`
+	PolicySetID   uuid.UUID   `db:"policy_set_id" json:"policy_set_id"`
+	PolicyKind    string      `db:"policy_kind" json:"policy_kind"`
+	ScopeType     string      `db:"scope_type" json:"scope_type"`
+	ScopeID       pgtype.UUID `db:"scope_id" json:"scope_id"`
+	RoleCode      pgtype.Text `db:"role_code" json:"role_code"`
+	Priority      int32       `db:"priority" json:"priority"`
+	EffectiveFrom pgtype.Date `db:"effective_from" json:"effective_from"`
+	EffectiveTo   pgtype.Date `db:"effective_to" json:"effective_to"`
+	IsActive      bool        `db:"is_active" json:"is_active"`
+	UpdatedBy     pgtype.UUID `db:"updated_by" json:"updated_by"`
+}
+
+func (q *Queries) UpdatePolicyAssignment(ctx context.Context, arg UpdatePolicyAssignmentParams) (HrmsPolicyAssignment, error) {
+	row := q.db.QueryRow(ctx, updatePolicyAssignment,
+		arg.TenantID,
+		arg.ID,
+		arg.PolicySetID,
+		arg.PolicyKind,
+		arg.ScopeType,
+		arg.ScopeID,
+		arg.RoleCode,
+		arg.Priority,
+		arg.EffectiveFrom,
+		arg.EffectiveTo,
+		arg.IsActive,
+		arg.UpdatedBy,
+	)
+	var i HrmsPolicyAssignment
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.PolicySetID,
+		&i.PolicyKind,
+		&i.ScopeType,
+		&i.ScopeID,
+		&i.RoleCode,
+		&i.Priority,
+		&i.EffectiveFrom,
+		&i.EffectiveTo,
+		&i.IsActive,
+		&i.Inactive,
+		&i.CreatedAt,
+		&i.CreatedBy,
+		&i.UpdatedAt,
+		&i.UpdatedBy,
+	)
+	return i, err
 }
 
 const updatePolicySet = `-- name: UpdatePolicySet :one

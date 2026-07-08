@@ -100,6 +100,30 @@ func (s *Store) CreatePolicyAssignment(ctx context.Context, item *domain.PolicyA
 	return mapPolicyAssignment(row), nil
 }
 
+func (s *Store) UpdatePolicyAssignment(ctx context.Context, item *domain.PolicyAssignment, actorID *uuid.UUID) (*domain.PolicyAssignment, error) {
+	row, err := s.getQueries(ctx).UpdatePolicyAssignment(ctx, sqlc.UpdatePolicyAssignmentParams{
+		TenantID:      item.TenantID,
+		ID:            item.ID,
+		PolicySetID:   item.PolicySetID,
+		PolicyKind:    item.PolicyKind,
+		ScopeType:     item.ScopeType,
+		ScopeID:       uuidFromPtr(item.ScopeID),
+		RoleCode:      textFromPtr(item.RoleCode),
+		Priority:      item.Priority,
+		EffectiveFrom: dateFromPtr(item.EffectiveFrom),
+		EffectiveTo:   dateFromPtr(item.EffectiveTo),
+		IsActive:      item.IsActive,
+		UpdatedBy:     uuidFromPtr(actorID),
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrPolicyAssignmentNotFound
+		}
+		return nil, s.logDBError(ctx, "update policy assignment", err, tenantIDField(item.TenantID), stringField("policy_assignment_id", item.ID.String()))
+	}
+	return mapPolicyAssignment(row), nil
+}
+
 func (s *Store) ListPolicyAssignments(ctx context.Context, tenantID uuid.UUID, policyKind string) ([]*domain.PolicyAssignment, error) {
 	rows, err := s.getQueries(ctx).ListPolicyAssignments(ctx, sqlc.ListPolicyAssignmentsParams{TenantID: tenantID, PolicyKind: policyKind})
 	if err != nil {
@@ -153,12 +177,61 @@ func (s *Store) CreateLeavePolicyRule(ctx context.Context, item *domain.LeavePol
 	return mapLeavePolicyRule(row), nil
 }
 
+func (s *Store) UpdateLeavePolicyRule(ctx context.Context, item *domain.LeavePolicyRule, actorID *uuid.UUID) (*domain.LeavePolicyRule, error) {
+	row, err := s.getQueries(ctx).UpdateLeavePolicyRule(ctx, sqlc.UpdateLeavePolicyRuleParams{
+		TenantID:                     item.TenantID,
+		ID:                           item.ID,
+		PolicySetID:                  item.PolicySetID,
+		LeaveTypeID:                  item.LeaveTypeID,
+		GrantMode:                    item.GrantMode,
+		AccrualFrequency:             textFromPtr(item.AccrualFrequency),
+		EntitlementDays:              numericFromFloat(item.EntitlementDays),
+		AccrualAmountPerPeriod:       numericFromFloat(item.AccrualAmountPerPeriod),
+		ProrateJoiners:               item.ProrateJoiners,
+		ProbationHandling:            item.ProbationHandling,
+		RoundingRule:                 item.RoundingRule,
+		MaxBalanceCap:                numericFromFloatPtr(item.MaxBalanceCap),
+		CarryForwardCap:              numericFromFloatPtr(item.CarryForwardCap),
+		EncashmentEligible:           item.EncashmentEligible,
+		NegativeBalanceAllowed:       item.NegativeBalanceAllowed,
+		InsufficientBalanceAction:    item.InsufficientBalanceAction,
+		ExpiryDays:                   int4FromPtr(item.ExpiryDays),
+		AllowHalfDay:                 item.AllowHalfDay,
+		AttachmentRequiredAfterDays:  numericFromFloatPtr(item.AttachmentRequiredAfterDays),
+		ApprovalWorkflow:             jsonRawDefault(item.ApprovalWorkflow, "{}"),
+		SandwichEnabled:              item.SandwichEnabled,
+		SandwichIncludeWeeklyOff:     item.SandwichIncludeWeeklyOff,
+		SandwichIncludePublicHoliday: item.SandwichIncludePublicHoliday,
+		SandwichSameLeaveTypeOnly:    item.SandwichSameLeaveTypeOnly,
+		SandwichAcrossLeaveTypes:     item.SandwichAcrossLeaveTypes,
+		NoticeRequiredAfterDays:      numericFromFloatPtr(item.NoticeRequiredAfterDays),
+		NoticeDays:                   item.NoticeDays,
+		PayrollImpact:                item.PayrollImpact,
+		RuleConfig:                   jsonRawDefault(item.RuleConfig, "{}"),
+		UpdatedBy:                    uuidFromPtr(actorID),
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrLeavePolicyRuleNotFound
+		}
+		return nil, s.logDBError(ctx, "update leave policy rule", err, tenantIDField(item.TenantID), stringField("leave_policy_rule_id", item.ID.String()))
+	}
+	return mapLeavePolicyRule(row), nil
+}
+
 func (s *Store) ListLeavePolicyRules(ctx context.Context, tenantID uuid.UUID, policySetID uuid.UUID) ([]*domain.LeavePolicyRule, error) {
 	rows, err := s.getQueries(ctx).ListLeavePolicyRules(ctx, sqlc.ListLeavePolicyRulesParams{TenantID: tenantID, PolicySetID: policySetID})
 	if err != nil {
 		return nil, s.logDBError(ctx, "list leave policy rules", err, tenantIDField(tenantID), stringField("policy_set_id", policySetID.String()))
 	}
 	return mapLeavePolicyRules(rows), nil
+}
+
+func (s *Store) DeleteLeavePolicyRule(ctx context.Context, tenantID uuid.UUID, id uuid.UUID, actorID *uuid.UUID) error {
+	if err := s.getQueries(ctx).SoftDeleteLeavePolicyRule(ctx, sqlc.SoftDeleteLeavePolicyRuleParams{TenantID: tenantID, ID: id, UpdatedBy: uuidFromPtr(actorID)}); err != nil {
+		return s.logDBError(ctx, "delete leave policy rule", err, tenantIDField(tenantID), stringField("leave_policy_rule_id", id.String()))
+	}
+	return nil
 }
 
 func (s *Store) ResolvePolicySet(ctx context.Context, subject domain.PolicyResolutionSubject, policyKind string) (*domain.PolicySet, error) {

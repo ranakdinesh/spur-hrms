@@ -25,6 +25,23 @@ func (s *TenantService) CreatePolicySet(ctx context.Context, cmd ports.PolicySet
 	return result, nil
 }
 
+func (s *TenantService) UpdatePolicySet(ctx context.Context, cmd ports.PolicySetCommand) (*domain.PolicySet, error) {
+	if cmd.ID == uuid.Nil {
+		return nil, domain.ErrInvalidPolicySetID
+	}
+	item, err := s.buildPolicySet(cmd)
+	if err != nil {
+		s.logError("validate policy set update", err, serviceTenantIDField(cmd.TenantID), serviceStringField("policy_kind", cmd.PolicyKind), serviceStringField("policy_set_id", cmd.ID.String()))
+		return nil, err
+	}
+	result, err := s.policyEngine.UpdatePolicySet(ctx, item, cmd.ActorID)
+	if err != nil {
+		s.logError("update policy set", err, serviceTenantIDField(cmd.TenantID), serviceStringField("policy_set_id", cmd.ID.String()))
+		return nil, err
+	}
+	return result, nil
+}
+
 func (s *TenantService) ListPolicySets(ctx context.Context, tenantID uuid.UUID, policyKind string) ([]*domain.PolicySet, error) {
 	if tenantID == uuid.Nil {
 		return nil, domain.ErrInvalidTenantID
@@ -42,14 +59,34 @@ func (s *TenantService) ListPolicySets(ctx context.Context, tenantID uuid.UUID, 
 	return items, nil
 }
 
+func (s *TenantService) DeletePolicySet(ctx context.Context, tenantID uuid.UUID, id uuid.UUID, actorID *uuid.UUID) error {
+	if tenantID == uuid.Nil {
+		return domain.ErrInvalidTenantID
+	}
+	if id == uuid.Nil {
+		return domain.ErrInvalidPolicySetID
+	}
+	if err := s.policyEngine.DeletePolicySet(ctx, tenantID, id, actorID); err != nil {
+		s.logError("delete policy set", err, serviceTenantIDField(tenantID), serviceStringField("policy_set_id", id.String()))
+		return err
+	}
+	return nil
+}
+
 func (s *TenantService) CreatePolicyAssignment(ctx context.Context, cmd ports.PolicyAssignmentCommand) (*domain.PolicyAssignment, error) {
 	item, err := s.buildPolicyAssignment(cmd)
 	if err != nil {
 		s.logError("validate policy assignment", err, serviceTenantIDField(cmd.TenantID), serviceStringField("policy_kind", cmd.PolicyKind), serviceStringField("scope_type", cmd.ScopeType))
 		return nil, err
 	}
-	if _, err := s.policyEngine.GetPolicySet(ctx, cmd.TenantID, cmd.PolicySetID); err != nil {
+	policySet, err := s.policyEngine.GetPolicySet(ctx, cmd.TenantID, cmd.PolicySetID)
+	if err != nil {
 		s.logError("validate policy assignment policy set", err, serviceTenantIDField(cmd.TenantID), serviceStringField("policy_set_id", cmd.PolicySetID.String()))
+		return nil, err
+	}
+	if policySet.PolicyKind != item.PolicyKind {
+		err := domain.ErrInvalidPolicyKind
+		s.logError("validate policy assignment policy kind", err, serviceTenantIDField(cmd.TenantID), serviceStringField("policy_set_id", cmd.PolicySetID.String()))
 		return nil, err
 	}
 	result, err := s.policyEngine.CreatePolicyAssignment(ctx, item, cmd.ActorID)
@@ -58,6 +95,65 @@ func (s *TenantService) CreatePolicyAssignment(ctx context.Context, cmd ports.Po
 		return nil, err
 	}
 	return result, nil
+}
+
+func (s *TenantService) UpdatePolicyAssignment(ctx context.Context, cmd ports.PolicyAssignmentCommand) (*domain.PolicyAssignment, error) {
+	if cmd.ID == uuid.Nil {
+		return nil, domain.ErrInvalidPolicyAssignmentID
+	}
+	item, err := s.buildPolicyAssignment(cmd)
+	if err != nil {
+		s.logError("validate policy assignment update", err, serviceTenantIDField(cmd.TenantID), serviceStringField("policy_kind", cmd.PolicyKind), serviceStringField("policy_assignment_id", cmd.ID.String()))
+		return nil, err
+	}
+	item.ID = cmd.ID
+	policySet, err := s.policyEngine.GetPolicySet(ctx, cmd.TenantID, cmd.PolicySetID)
+	if err != nil {
+		s.logError("validate policy assignment update policy set", err, serviceTenantIDField(cmd.TenantID), serviceStringField("policy_set_id", cmd.PolicySetID.String()))
+		return nil, err
+	}
+	if policySet.PolicyKind != item.PolicyKind {
+		err := domain.ErrInvalidPolicyKind
+		s.logError("validate policy assignment update policy kind", err, serviceTenantIDField(cmd.TenantID), serviceStringField("policy_set_id", cmd.PolicySetID.String()))
+		return nil, err
+	}
+	result, err := s.policyEngine.UpdatePolicyAssignment(ctx, item, cmd.ActorID)
+	if err != nil {
+		s.logError("update policy assignment", err, serviceTenantIDField(cmd.TenantID), serviceStringField("policy_assignment_id", cmd.ID.String()))
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *TenantService) ListPolicyAssignments(ctx context.Context, tenantID uuid.UUID, policyKind string) ([]*domain.PolicyAssignment, error) {
+	if tenantID == uuid.Nil {
+		return nil, domain.ErrInvalidTenantID
+	}
+	kind, err := domain.ValidatePolicyKind(policyKind)
+	if err != nil {
+		s.logError("validate policy assignment list kind", err, serviceTenantIDField(tenantID), serviceStringField("policy_kind", policyKind))
+		return nil, err
+	}
+	items, err := s.policyEngine.ListPolicyAssignments(ctx, tenantID, kind)
+	if err != nil {
+		s.logError("list policy assignments", err, serviceTenantIDField(tenantID), serviceStringField("policy_kind", kind))
+		return nil, err
+	}
+	return items, nil
+}
+
+func (s *TenantService) DeletePolicyAssignment(ctx context.Context, tenantID uuid.UUID, id uuid.UUID, actorID *uuid.UUID) error {
+	if tenantID == uuid.Nil {
+		return domain.ErrInvalidTenantID
+	}
+	if id == uuid.Nil {
+		return domain.ErrInvalidPolicyAssignmentID
+	}
+	if err := s.policyEngine.DeletePolicyAssignment(ctx, tenantID, id, actorID); err != nil {
+		s.logError("delete policy assignment", err, serviceTenantIDField(tenantID), serviceStringField("policy_assignment_id", id.String()))
+		return err
+	}
+	return nil
 }
 
 func (s *TenantService) CreateLeavePolicyRule(ctx context.Context, cmd ports.LeavePolicyRuleCommand) (*domain.LeavePolicyRule, error) {
@@ -86,6 +182,67 @@ func (s *TenantService) CreateLeavePolicyRule(ctx context.Context, cmd ports.Lea
 		return nil, err
 	}
 	return result, nil
+}
+
+func (s *TenantService) UpdateLeavePolicyRule(ctx context.Context, cmd ports.LeavePolicyRuleCommand) (*domain.LeavePolicyRule, error) {
+	if cmd.ID == uuid.Nil {
+		return nil, domain.ErrInvalidLeavePolicyRuleID
+	}
+	item, err := s.buildLeavePolicyRule(cmd)
+	if err != nil {
+		s.logError("validate leave policy rule update", err, serviceTenantIDField(cmd.TenantID), serviceStringField("leave_policy_rule_id", cmd.ID.String()))
+		return nil, err
+	}
+	item.ID = cmd.ID
+	policySet, err := s.policyEngine.GetPolicySet(ctx, cmd.TenantID, cmd.PolicySetID)
+	if err != nil {
+		s.logError("validate leave policy rule update policy set", err, serviceTenantIDField(cmd.TenantID), serviceStringField("policy_set_id", cmd.PolicySetID.String()))
+		return nil, err
+	}
+	if policySet.PolicyKind != domain.PolicyKindLeave {
+		err := domain.ErrInvalidPolicyKind
+		s.logError("validate leave policy rule update policy kind", err, serviceTenantIDField(cmd.TenantID), serviceStringField("policy_set_id", cmd.PolicySetID.String()))
+		return nil, err
+	}
+	if _, err := s.leaveTypes.GetLeaveType(ctx, cmd.TenantID, cmd.LeaveTypeID); err != nil {
+		s.logError("validate leave policy rule update leave type", err, serviceTenantIDField(cmd.TenantID), serviceStringField("leave_type_id", cmd.LeaveTypeID.String()))
+		return nil, err
+	}
+	result, err := s.policyEngine.UpdateLeavePolicyRule(ctx, item, cmd.ActorID)
+	if err != nil {
+		s.logError("update leave policy rule", err, serviceTenantIDField(cmd.TenantID), serviceStringField("leave_policy_rule_id", cmd.ID.String()))
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *TenantService) ListLeavePolicyRules(ctx context.Context, tenantID uuid.UUID, policySetID uuid.UUID) ([]*domain.LeavePolicyRule, error) {
+	if tenantID == uuid.Nil {
+		return nil, domain.ErrInvalidTenantID
+	}
+	if policySetID == uuid.Nil {
+		return nil, domain.ErrInvalidPolicySetID
+	}
+	items, err := s.policyEngine.ListLeavePolicyRules(ctx, tenantID, policySetID)
+	if err != nil {
+		s.logError("list leave policy rules", err, serviceTenantIDField(tenantID), serviceStringField("policy_set_id", policySetID.String()))
+		return nil, err
+	}
+	return items, nil
+}
+
+func (s *TenantService) DeleteLeavePolicyRule(ctx context.Context, tenantID uuid.UUID, id uuid.UUID, actorID *uuid.UUID) error {
+	if tenantID == uuid.Nil {
+		return domain.ErrInvalidTenantID
+	}
+	if id == uuid.Nil {
+		return domain.ErrInvalidLeavePolicyRuleID
+	}
+	if err := s.policyEngine.DeleteLeavePolicyRule(ctx, tenantID, id, actorID); err != nil {
+		s.logError("delete leave policy rule", err, serviceTenantIDField(tenantID), serviceStringField("leave_policy_rule_id", id.String()))
+		return err
+	}
+	return nil
 }
 
 func (s *TenantService) ResolveEffectivePolicySet(ctx context.Context, subject domain.PolicyResolutionSubject, policyKind string) (*domain.PolicyResolutionResult, error) {
