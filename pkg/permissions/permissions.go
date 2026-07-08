@@ -303,6 +303,14 @@ const (
 	LeaveAccrualRun              = "leave_accrual.run"
 	LeaveApprovalWorkflowsList   = "leave_approval_workflows.list"
 	LeaveApprovalWorkflowsManage = "leave_approval_workflows.manage"
+	LeaveSelfView                = "leave.self.view"
+	LeaveSelfApply               = "leave.self.apply"
+	LeaveSelfCompOffRequest      = "leave.self.comp_off_request"
+	LeaveOperationsView          = "leave.operations.view"
+	LeaveOperationsManage        = "leave.operations.manage"
+	LeavePolicyView              = "leave.policy.view"
+	LeavePolicyManage            = "leave.policy.manage"
+	CompOffApprove               = "comp_off.approve"
 
 	LeavesList    = "leaves.list"
 	LeavesApply   = "leaves.apply"
@@ -323,6 +331,15 @@ const (
 	AttendanceExceptionWorkflowsList   = "attendance_exception_workflows.list"
 	AttendanceExceptionWorkflowsManage = "attendance_exception_workflows.manage"
 	AttendancePayrollBlockersView      = "attendance_payroll_blockers.view"
+	AttendanceSelfView                 = "attendance.self.view"
+	AttendanceSelfPunch                = "attendance.self.punch"
+	AttendanceSelfRegularize           = "attendance.self.regularize"
+	AttendanceOperationsView           = "attendance.operations.view"
+	AttendanceOperationsManage         = "attendance.operations.manage"
+	AttendancePolicyView               = "attendance.policy.view"
+	AttendancePolicyManage             = "attendance.policy.manage"
+	OvertimePolicyView                 = "overtime.policy.view"
+	OvertimePolicyManage               = "overtime.policy.manage"
 
 	AttendanceLocationsList   = "attendance_locations.list"
 	AttendanceLocationsCreate = "attendance_locations.create"
@@ -913,6 +930,14 @@ var Catalog = []Permission{
 	{LeaveAccrualRun, "Run leave accrual jobs."},
 	{LeaveApprovalWorkflowsList, "List leave approval workflows."},
 	{LeaveApprovalWorkflowsManage, "Manage configurable leave approval workflows."},
+	{LeaveSelfView, "View own leave balances and requests."},
+	{LeaveSelfApply, "Apply for own leave."},
+	{LeaveSelfCompOffRequest, "Request own compensatory off credit or use."},
+	{LeaveOperationsView, "View tenant-wide leave operations."},
+	{LeaveOperationsManage, "Manage tenant-wide leave operations."},
+	{LeavePolicyView, "View leave policy engine configuration."},
+	{LeavePolicyManage, "Manage leave policy engine configuration."},
+	{CompOffApprove, "Approve compensatory off credits or requests."},
 	{LeavesList, "List leave requests."},
 	{LeavesApply, "Apply for leave."},
 	{LeavesView, "View leave request details."},
@@ -931,6 +956,15 @@ var Catalog = []Permission{
 	{AttendanceExceptionWorkflowsList, "List attendance exception workflow configurations."},
 	{AttendanceExceptionWorkflowsManage, "Manage attendance exception workflows and payroll blocker rules."},
 	{AttendancePayrollBlockersView, "View unresolved attendance exceptions that block payroll locking."},
+	{AttendanceSelfView, "View own attendance records."},
+	{AttendanceSelfPunch, "Create own attendance punches."},
+	{AttendanceSelfRegularize, "Request regularisation for own attendance."},
+	{AttendanceOperationsView, "View tenant-wide attendance operations."},
+	{AttendanceOperationsManage, "Manage tenant-wide attendance operations."},
+	{AttendancePolicyView, "View attendance policy engine configuration."},
+	{AttendancePolicyManage, "Manage attendance policy engine configuration."},
+	{OvertimePolicyView, "View overtime policy configuration."},
+	{OvertimePolicyManage, "Manage overtime policy configuration."},
 	{AttendanceLocationsList, "List attendance locations."},
 	{AttendanceLocationsCreate, "Create attendance locations."},
 	{AttendanceLocationsUpdate, "Update attendance locations."},
@@ -1310,8 +1344,10 @@ func hrPermissions() []string {
 		LeaveTemplatesList, LeaveTemplatesCreate, LeaveTemplatesUpdate, LeaveTemplateRulesManage, LeaveAssignmentsManage,
 		LeaveBalancesList, LeaveBalancesUpdate, LeaveLedgerView, LeaveAccrualRun,
 		LeaveApprovalWorkflowsList, LeaveApprovalWorkflowsManage,
+		LeavePolicyView, LeavePolicyManage, LeaveOperationsView, LeaveOperationsManage, CompOffApprove,
 		LeavesList, LeavesView, LeavesApprove, LeavesReject, LeavesReport,
 		AttendanceList, AttendanceView, AttendanceUpdate, AttendanceReviewRequest, AttendanceReport,
+		AttendanceOperationsView, AttendanceOperationsManage, AttendancePolicyView, AttendancePolicyManage, OvertimePolicyView, OvertimePolicyManage,
 		AttendanceExceptionWorkflowsList, AttendanceExceptionWorkflowsManage, AttendancePayrollBlockersView,
 		AttendanceLocationsList, AttendanceLocationsCreate, AttendanceLocationsUpdate,
 		AttendanceLocationAssignmentsList, AttendanceLocationAssignmentsCreate, AttendanceLocationAssignmentsUpdate,
@@ -1396,8 +1432,8 @@ func managerPermissions() []string {
 		FeedbackResponsesList, FeedbackResponsesCreate, FeedbackResponsesView,
 		PulseSurveysList, PulseSurveysView, PulseQuestionsList, PulseResponsesCreate, WellbeingScoresList, WellbeingAggregateView,
 		AgreementsList, AgreementsView, AgreementsDownload, AgreementsEventsView,
-		LeavesList, LeavesView, LeavesApprove, LeavesReject, LeavesReport,
-		AttendanceList, AttendanceView, AttendanceReviewRequest, AttendanceReport,
+		LeavesList, LeavesView, LeavesApprove, LeavesReject, LeavesReport, LeaveOperationsView, CompOffApprove,
+		AttendanceList, AttendanceView, AttendanceReviewRequest, AttendanceReport, AttendanceOperationsView,
 		ShiftAssignmentsList, ShiftSwapsList, ShiftSwapsReview, ShiftScheduleSummaryView,
 		BenefitPlansList, BenefitWindowsList, BenefitEnrollmentsList, BenefitClaimsList, BenefitClaimsReview, BenefitSummaryView,
 		HRCasesList, HRCasesCreate, HRCasesView, HRCasesStatus, HRCasesComment, HRCasesAttach,
@@ -1430,7 +1466,9 @@ func employeePermissions() []string {
 		FeedbackResponsesList, FeedbackResponsesCreate, FeedbackResponsesView,
 		PulseSurveysList, PulseSurveysView, PulseQuestionsList, PulseResponsesCreate, WellbeingScoresList,
 		LeaveTypesList, LeaveBalancesList,
+		LeaveSelfView, LeaveSelfApply, LeaveSelfCompOffRequest,
 		LeavesList, LeavesApply, LeavesView, LeavesCancel,
+		AttendanceSelfView, AttendanceSelfPunch, AttendanceSelfRegularize,
 		AttendanceList, AttendanceCheckIn, AttendanceCheckOut, AttendanceView, AttendanceRegularize,
 		ShiftAssignmentsList, ShiftSwapsList, ShiftSwapsCreate,
 		BenefitPlansList, BenefitWindowsList, BenefitDependentsList, BenefitDependentsManage, BenefitEnrollmentsList, BenefitEnrollmentsManage, BenefitClaimTypesList, BenefitClaimsList, BenefitClaimsCreate, BenefitClaimsAttach, BenefitSummaryView,

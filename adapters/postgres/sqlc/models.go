@@ -2783,6 +2783,43 @@ type HrmsLeavePolicy struct {
 	UpdatedBy            pgtype.UUID        `db:"updated_by" json:"updated_by"`
 }
 
+type HrmsLeavePolicyRule struct {
+	ID                           uuid.UUID          `db:"id" json:"id"`
+	TenantID                     uuid.UUID          `db:"tenant_id" json:"tenant_id"`
+	PolicySetID                  uuid.UUID          `db:"policy_set_id" json:"policy_set_id"`
+	LeaveTypeID                  uuid.UUID          `db:"leave_type_id" json:"leave_type_id"`
+	GrantMode                    string             `db:"grant_mode" json:"grant_mode"`
+	AccrualFrequency             pgtype.Text        `db:"accrual_frequency" json:"accrual_frequency"`
+	EntitlementDays              pgtype.Numeric     `db:"entitlement_days" json:"entitlement_days"`
+	AccrualAmountPerPeriod       pgtype.Numeric     `db:"accrual_amount_per_period" json:"accrual_amount_per_period"`
+	ProrateJoiners               bool               `db:"prorate_joiners" json:"prorate_joiners"`
+	ProbationHandling            string             `db:"probation_handling" json:"probation_handling"`
+	RoundingRule                 string             `db:"rounding_rule" json:"rounding_rule"`
+	MaxBalanceCap                pgtype.Numeric     `db:"max_balance_cap" json:"max_balance_cap"`
+	CarryForwardCap              pgtype.Numeric     `db:"carry_forward_cap" json:"carry_forward_cap"`
+	EncashmentEligible           bool               `db:"encashment_eligible" json:"encashment_eligible"`
+	NegativeBalanceAllowed       bool               `db:"negative_balance_allowed" json:"negative_balance_allowed"`
+	InsufficientBalanceAction    string             `db:"insufficient_balance_action" json:"insufficient_balance_action"`
+	ExpiryDays                   pgtype.Int4        `db:"expiry_days" json:"expiry_days"`
+	AllowHalfDay                 bool               `db:"allow_half_day" json:"allow_half_day"`
+	AttachmentRequiredAfterDays  pgtype.Numeric     `db:"attachment_required_after_days" json:"attachment_required_after_days"`
+	ApprovalWorkflow             []byte             `db:"approval_workflow" json:"approval_workflow"`
+	SandwichEnabled              bool               `db:"sandwich_enabled" json:"sandwich_enabled"`
+	SandwichIncludeWeeklyOff     bool               `db:"sandwich_include_weekly_off" json:"sandwich_include_weekly_off"`
+	SandwichIncludePublicHoliday bool               `db:"sandwich_include_public_holiday" json:"sandwich_include_public_holiday"`
+	SandwichSameLeaveTypeOnly    bool               `db:"sandwich_same_leave_type_only" json:"sandwich_same_leave_type_only"`
+	SandwichAcrossLeaveTypes     bool               `db:"sandwich_across_leave_types" json:"sandwich_across_leave_types"`
+	NoticeRequiredAfterDays      pgtype.Numeric     `db:"notice_required_after_days" json:"notice_required_after_days"`
+	NoticeDays                   int32              `db:"notice_days" json:"notice_days"`
+	PayrollImpact                string             `db:"payroll_impact" json:"payroll_impact"`
+	RuleConfig                   []byte             `db:"rule_config" json:"rule_config"`
+	Inactive                     bool               `db:"inactive" json:"inactive"`
+	CreatedAt                    pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	CreatedBy                    pgtype.UUID        `db:"created_by" json:"created_by"`
+	UpdatedAt                    pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	UpdatedBy                    pgtype.UUID        `db:"updated_by" json:"updated_by"`
+}
+
 type HrmsLeavePolicyTemplate struct {
 	ID            uuid.UUID          `db:"id" json:"id"`
 	TenantID      pgtype.UUID        `db:"tenant_id" json:"tenant_id"`
@@ -3461,6 +3498,44 @@ type HrmsPerformanceTimelineEvent struct {
 	Inactive             bool               `db:"inactive" json:"inactive"`
 	CreatedAt            pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	CreatedBy            pgtype.UUID        `db:"created_by" json:"created_by"`
+}
+
+type HrmsPolicyAssignment struct {
+	ID            uuid.UUID          `db:"id" json:"id"`
+	TenantID      uuid.UUID          `db:"tenant_id" json:"tenant_id"`
+	PolicySetID   uuid.UUID          `db:"policy_set_id" json:"policy_set_id"`
+	PolicyKind    string             `db:"policy_kind" json:"policy_kind"`
+	ScopeType     string             `db:"scope_type" json:"scope_type"`
+	ScopeID       pgtype.UUID        `db:"scope_id" json:"scope_id"`
+	RoleCode      pgtype.Text        `db:"role_code" json:"role_code"`
+	Priority      int32              `db:"priority" json:"priority"`
+	EffectiveFrom pgtype.Date        `db:"effective_from" json:"effective_from"`
+	EffectiveTo   pgtype.Date        `db:"effective_to" json:"effective_to"`
+	IsActive      bool               `db:"is_active" json:"is_active"`
+	Inactive      bool               `db:"inactive" json:"inactive"`
+	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	CreatedBy     pgtype.UUID        `db:"created_by" json:"created_by"`
+	UpdatedAt     pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	UpdatedBy     pgtype.UUID        `db:"updated_by" json:"updated_by"`
+}
+
+type HrmsPolicySet struct {
+	ID            uuid.UUID          `db:"id" json:"id"`
+	TenantID      uuid.UUID          `db:"tenant_id" json:"tenant_id"`
+	PolicyKind    string             `db:"policy_kind" json:"policy_kind"`
+	Code          string             `db:"code" json:"code"`
+	Name          string             `db:"name" json:"name"`
+	Description   pgtype.Text        `db:"description" json:"description"`
+	Config        []byte             `db:"config" json:"config"`
+	IsDefault     bool               `db:"is_default" json:"is_default"`
+	IsActive      bool               `db:"is_active" json:"is_active"`
+	EffectiveFrom pgtype.Date        `db:"effective_from" json:"effective_from"`
+	EffectiveTo   pgtype.Date        `db:"effective_to" json:"effective_to"`
+	Inactive      bool               `db:"inactive" json:"inactive"`
+	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	CreatedBy     pgtype.UUID        `db:"created_by" json:"created_by"`
+	UpdatedAt     pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	UpdatedBy     pgtype.UUID        `db:"updated_by" json:"updated_by"`
 }
 
 type HrmsPolicyType struct {

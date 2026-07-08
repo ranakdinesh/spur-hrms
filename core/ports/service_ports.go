@@ -352,6 +352,13 @@ type TenantService interface {
 	GetHoliday(ctx context.Context, tenantID uuid.UUID, id uuid.UUID) (*domain.Holiday, error)
 	UpdateHoliday(ctx context.Context, cmd HolidayCommand) (*domain.Holiday, error)
 	DeleteHoliday(ctx context.Context, tenantID uuid.UUID, id uuid.UUID, actorID *uuid.UUID) error
+	CreatePolicySet(ctx context.Context, cmd PolicySetCommand) (*domain.PolicySet, error)
+	ListPolicySets(ctx context.Context, tenantID uuid.UUID, policyKind string) ([]*domain.PolicySet, error)
+	CreatePolicyAssignment(ctx context.Context, cmd PolicyAssignmentCommand) (*domain.PolicyAssignment, error)
+	CreateLeavePolicyRule(ctx context.Context, cmd LeavePolicyRuleCommand) (*domain.LeavePolicyRule, error)
+	ResolveEffectivePolicySet(ctx context.Context, subject domain.PolicyResolutionSubject, policyKind string) (*domain.PolicyResolutionResult, error)
+	ResolveEmployeeAttendancePolicySet(ctx context.Context, tenantID uuid.UUID, employeeUserID uuid.UUID, date string, roleCodes []string) (*domain.PolicyResolutionResult, error)
+	ResolveEmployeeLeavePolicySet(ctx context.Context, tenantID uuid.UUID, employeeUserID uuid.UUID, date string, roleCodes []string) (*domain.PolicyResolutionResult, error)
 	CreateLeaveType(ctx context.Context, cmd LeaveTypeCommand) (*domain.LeaveType, error)
 	ListLeaveTypes(ctx context.Context, tenantID uuid.UUID) ([]*domain.LeaveType, error)
 	GetLeaveType(ctx context.Context, tenantID uuid.UUID, id uuid.UUID) (*domain.LeaveType, error)
