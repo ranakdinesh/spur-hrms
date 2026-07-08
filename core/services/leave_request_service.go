@@ -92,18 +92,11 @@ func (s *TenantService) PreviewLeave(ctx context.Context, cmd ports.ApplyLeaveCo
 		return nil, err
 	}
 	if policy != nil && policy.IsSandwichApplicable {
-		holidays, err := s.holidays.ListHolidaysByDateRange(ctx, cmd.TenantID, startDate, endDate)
+		isSandwich, extraDays, err := s.calculateSandwichDays(ctx, cmd.TenantID, startDate, endDate, true, true)
 		if err != nil {
-			s.logError("list preview leave sandwich holidays", err, serviceTenantIDField(cmd.TenantID))
+			s.logError("calculate preview leave sandwich days", err, serviceTenantIDField(cmd.TenantID))
 			return nil, err
 		}
-		holidayDates := make([]time.Time, 0, len(holidays))
-		for _, holiday := range holidays {
-			if !holiday.IsOptional {
-				holidayDates = append(holidayDates, holiday.Date)
-			}
-		}
-		isSandwich, extraDays := domain.IsSandwich(startDate, endDate, holidayDates, []time.Weekday{time.Saturday, time.Sunday})
 		preview.IsSandwich = isSandwich
 		preview.SandwichDays = extraDays
 		preview.TotalDays += extraDays
@@ -118,6 +111,19 @@ func (s *TenantService) PreviewLeave(ctx context.Context, cmd ports.ApplyLeaveCo
 			if rule.LeaveTypeID == cmd.LeaveTypeID {
 				preview.EffectiveLeaveRule = rule
 				preview.PayrollImpact = rule.PayrollImpact
+				if !preview.IsSandwich && rule.SandwichEnabled {
+					isSandwich, extraDays, err := s.calculateSandwichDays(ctx, cmd.TenantID, startDate, endDate, rule.SandwichIncludeWeeklyOff, rule.SandwichIncludePublicHoliday)
+					if err != nil {
+						s.logError("calculate preview leave policy-engine sandwich days", err, serviceTenantIDField(cmd.TenantID), serviceStringField("leave_type_id", cmd.LeaveTypeID.String()))
+						return nil, err
+					}
+					preview.IsSandwich = isSandwich
+					preview.SandwichDays = extraDays
+					preview.TotalDays += extraDays
+					if isSandwich && extraDays > 0 {
+						preview.Warnings = append(preview.Warnings, fmt.Sprintf("Sandwich rule adds %.1f non-working day(s).", extraDays))
+					}
+				}
 				if rule.AttachmentRequiredAfterDays != nil && preview.TotalDays > *rule.AttachmentRequiredAfterDays {
 					preview.RequiresAttachment = true
 					preview.AttachmentRequiredAfterDays = rule.AttachmentRequiredAfterDays
@@ -263,20 +269,33 @@ func (s *TenantService) ApplyLeave(ctx context.Context, cmd ports.ApplyLeaveComm
 	}
 	sandwich := false
 	if policy != nil && policy.IsSandwichApplicable {
-		holidays, err := s.holidays.ListHolidaysByDateRange(ctx, cmd.TenantID, startDate, endDate)
+		isSandwich, extraDays, err := s.calculateSandwichDays(ctx, cmd.TenantID, startDate, endDate, true, true)
 		if err != nil {
-			s.logError("list apply leave sandwich holidays", err, serviceTenantIDField(cmd.TenantID))
+			s.logError("calculate apply leave sandwich days", err, serviceTenantIDField(cmd.TenantID))
 			return nil, err
 		}
-		holidayDates := make([]time.Time, 0, len(holidays))
-		for _, holiday := range holidays {
-			if !holiday.IsOptional {
-				holidayDates = append(holidayDates, holiday.Date)
-			}
-		}
-		isSandwich, extraDays := domain.IsSandwich(startDate, endDate, holidayDates, []time.Weekday{time.Saturday, time.Sunday})
 		sandwich = isSandwich
 		days += extraDays
+	}
+	if !sandwich {
+		effective, err := s.ResolveEmployeeLeavePolicySet(ctx, cmd.TenantID, cmd.UserID, startDate.Format("2006-01-02"), nil)
+		if err == nil && effective != nil {
+			for _, rule := range effective.LeaveRules {
+				if rule.LeaveTypeID != cmd.LeaveTypeID || !rule.SandwichEnabled {
+					continue
+				}
+				isSandwich, extraDays, err := s.calculateSandwichDays(ctx, cmd.TenantID, startDate, endDate, rule.SandwichIncludeWeeklyOff, rule.SandwichIncludePublicHoliday)
+				if err != nil {
+					s.logError("calculate apply leave policy-engine sandwich days", err, serviceTenantIDField(cmd.TenantID), serviceStringField("leave_type_id", cmd.LeaveTypeID.String()))
+					return nil, err
+				}
+				sandwich = isSandwich
+				days += extraDays
+				break
+			}
+		} else if err != nil {
+			s.log.Warn().Err(err).Str("tenant_id", cmd.TenantID.String()).Str("user_id", cmd.UserID.String()).Msg("hrms: unable to resolve policy-engine leave rule during apply")
+		}
 	}
 	leave, err := domain.NewLeaveApplication(cmd.TenantID, cmd.UserID, cmd.LeaveTypeID, cmd.FYID, startDate, endDate, cmd.StartDayType, cmd.EndDayType, cmd.Reason, days, sandwich)
 	if err != nil {
@@ -359,11 +378,11 @@ func (s *TenantService) ApplyLeave(ctx context.Context, cmd ports.ApplyLeaveComm
 	if s.leaveNotifier != nil {
 		if err := s.leaveNotifier.NotifyLeaveApplied(ctx, application); err != nil {
 			s.logError("notify leave applied", err, serviceTenantIDField(cmd.TenantID), serviceStringField("leave_id", application.Leave.ID.String()))
-			return nil, err
 		}
 	} else {
 		s.log.Warn().Str("tenant_id", cmd.TenantID.String()).Str("leave_id", application.Leave.ID.String()).Msg("hrms: leave notification hook not configured")
 	}
+	s.notifyLeaveApplied(ctx, application, cmd.ActorID)
 	return application, nil
 }
 
@@ -444,6 +463,28 @@ func parseLeaveDateRange(startDate string, endDate string) (time.Time, time.Time
 		return time.Time{}, time.Time{}, domain.ErrInvalidDateRange
 	}
 	return start, end, nil
+}
+
+func (s *TenantService) calculateSandwichDays(ctx context.Context, tenantID uuid.UUID, startDate time.Time, endDate time.Time, includeWeeklyOff bool, includePublicHoliday bool) (bool, float64, error) {
+	holidayDates := []time.Time{}
+	if includePublicHoliday {
+		holidays, err := s.holidays.ListHolidaysByDateRange(ctx, tenantID, startDate, endDate)
+		if err != nil {
+			return false, 0, err
+		}
+		holidayDates = make([]time.Time, 0, len(holidays))
+		for _, holiday := range holidays {
+			if !holiday.IsOptional {
+				holidayDates = append(holidayDates, holiday.Date)
+			}
+		}
+	}
+	weeklyOffs := []time.Weekday{}
+	if includeWeeklyOff {
+		weeklyOffs = []time.Weekday{time.Saturday, time.Sunday}
+	}
+	isSandwich, extraDays := domain.IsSandwich(startDate, endDate, holidayDates, weeklyOffs)
+	return isSandwich, extraDays, nil
 }
 
 func validateLeaveReportFilter(filter domain.LeaveReportFilter) error {

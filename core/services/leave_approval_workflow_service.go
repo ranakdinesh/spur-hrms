@@ -259,6 +259,13 @@ func (s *TenantService) ApproveLeave(ctx context.Context, cmd ports.ApproveLeave
 		s.logError("approve leave", err, serviceTenantIDField(cmd.TenantID), serviceStringField("approval_id", cmd.ApprovalID.String()))
 		return nil, err
 	}
+	if application != nil && application.Leave != nil {
+		if application.Leave.Status == domain.LeaveStatusApproved {
+			s.notifyLeaveReviewed(ctx, application, domain.NotifLeaveApproved, cmd.ActorID)
+		} else if application.Approval != nil && application.Approval.Status == domain.LeaveStatusPending {
+			s.notifyLeaveApplied(ctx, application, cmd.ActorID)
+		}
+	}
 	return application, nil
 }
 
@@ -312,6 +319,7 @@ func (s *TenantService) RejectLeave(ctx context.Context, cmd ports.RejectLeaveCo
 		s.logError("reject leave", err, serviceTenantIDField(cmd.TenantID), serviceStringField("approval_id", cmd.ApprovalID.String()))
 		return nil, err
 	}
+	s.notifyLeaveReviewed(ctx, application, domain.NotifLeaveRejected, cmd.ActorID)
 	return application, nil
 }
 
