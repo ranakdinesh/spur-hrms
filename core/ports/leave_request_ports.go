@@ -21,17 +21,18 @@ type LeaveRequestRepo interface {
 }
 
 type ApplyLeaveCommand struct {
-	TenantID     uuid.UUID  `json:"tenant_id"`
-	UserID       uuid.UUID  `json:"user_id"`
-	LeaveTypeID  uuid.UUID  `json:"leave_type_id"`
-	FYID         uuid.UUID  `json:"fy_id"`
-	StartDate    string     `json:"start_date"`
-	EndDate      string     `json:"end_date"`
-	StartDayType string     `json:"start_day_type"`
-	EndDayType   string     `json:"end_day_type"`
-	Reason       *string    `json:"reason,omitempty"`
-	ApproverID   *uuid.UUID `json:"approver_id,omitempty"`
-	ActorID      *uuid.UUID `json:"-"`
+	TenantID       uuid.UUID  `json:"tenant_id"`
+	UserID         uuid.UUID  `json:"user_id"`
+	LeaveTypeID    uuid.UUID  `json:"leave_type_id"`
+	FYID           uuid.UUID  `json:"fy_id"`
+	StartDate      string     `json:"start_date"`
+	EndDate        string     `json:"end_date"`
+	StartDayType   string     `json:"start_day_type"`
+	EndDayType     string     `json:"end_day_type"`
+	Reason         *string    `json:"reason,omitempty"`
+	ApproverID     *uuid.UUID `json:"approver_id,omitempty"`
+	ExcludeLeaveID *uuid.UUID `json:"exclude_leave_id,omitempty"`
+	ActorID        *uuid.UUID `json:"-"`
 }
 
 type LeaveRequestMessageCommand struct {

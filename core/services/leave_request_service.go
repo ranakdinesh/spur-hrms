@@ -151,6 +151,9 @@ func (s *TenantService) PreviewLeave(ctx context.Context, cmd ports.ApplyLeaveCo
 		return nil, err
 	}
 	for _, existing := range overlaps {
+		if cmd.ExcludeLeaveID != nil && existing.ID == *cmd.ExcludeLeaveID {
+			continue
+		}
 		overlaps, err := domain.LeavesOverlap(leave, existing)
 		if err != nil {
 			s.logError("validate preview leave overlap mask", err, serviceTenantIDField(cmd.TenantID), serviceStringField("leave_id", existing.ID.String()))
