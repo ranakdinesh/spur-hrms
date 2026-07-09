@@ -184,7 +184,7 @@ INSERT INTO hrms.notification_logs (
     sent_date, error_message, external_reference_id, idempotency_key, bulk_id, created_by
 )
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
-    CASE WHEN $8 = 'Sent' THEN NOW() ELSE NULL END,
+    CASE WHEN sqlc.arg('sent_date_status')::text = 'Sent' THEN NOW() ELSE NULL END,
     $9, $10, $11, $12, $13
 )
 ON CONFLICT (tenant_id, idempotency_key) WHERE idempotency_key IS NOT NULL AND NOT inactive

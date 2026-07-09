@@ -144,7 +144,7 @@ func (s *Store) DeleteNotificationInboxItem(ctx context.Context, tenantID uuid.U
 }
 
 func (s *Store) CreateNotificationLog(ctx context.Context, item *domain.NotificationLog, actorID *uuid.UUID) (*domain.NotificationLog, error) {
-	row, err := s.getQueries(ctx).CreateNotificationLog(ctx, sqlc.CreateNotificationLogParams{TenantID: item.TenantID, NotificationMasterID: uuidFromPtr(item.NotificationMasterID), UserID: uuidFromPtr(item.UserID), Channel: item.Channel, TargetAddress: item.TargetAddress, Subject: textFromPtr(item.Subject), Body: textFromPtr(item.Body), Status: item.Status, ErrorMessage: textFromPtr(item.ErrorMessage), ExternalReferenceID: textFromPtr(item.ExternalReferenceID), IdempotencyKey: textFromPtr(item.IdempotencyKey), BulkID: uuidFromPtr(item.BulkID), CreatedBy: uuidFromPtr(actorID)})
+	row, err := s.getQueries(ctx).CreateNotificationLog(ctx, sqlc.CreateNotificationLogParams{TenantID: item.TenantID, NotificationMasterID: uuidFromPtr(item.NotificationMasterID), UserID: uuidFromPtr(item.UserID), Channel: item.Channel, TargetAddress: item.TargetAddress, Subject: textFromPtr(item.Subject), Body: textFromPtr(item.Body), Status: item.Status, ErrorMessage: textFromPtr(item.ErrorMessage), ExternalReferenceID: textFromPtr(item.ExternalReferenceID), IdempotencyKey: textFromPtr(item.IdempotencyKey), BulkID: uuidFromPtr(item.BulkID), CreatedBy: uuidFromPtr(actorID), SentDateStatus: item.Status})
 	if err != nil {
 		return nil, s.logDBError(ctx, "create notification log", fmt.Errorf("hrms: create notification log: %w", err), tenantIDField(item.TenantID), stringField("channel", item.Channel), stringField("status", item.Status))
 	}

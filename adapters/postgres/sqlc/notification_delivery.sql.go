@@ -125,7 +125,7 @@ INSERT INTO hrms.notification_logs (
     sent_date, error_message, external_reference_id, idempotency_key, bulk_id, created_by
 )
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
-    CASE WHEN $8 = 'Sent' THEN NOW() ELSE NULL END,
+    CASE WHEN $14::text = 'Sent' THEN NOW() ELSE NULL END,
     $9, $10, $11, $12, $13
 )
 ON CONFLICT (tenant_id, idempotency_key) WHERE idempotency_key IS NOT NULL AND NOT inactive
@@ -147,6 +147,7 @@ type CreateNotificationLogParams struct {
 	IdempotencyKey       pgtype.Text `db:"idempotency_key" json:"idempotency_key"`
 	BulkID               pgtype.UUID `db:"bulk_id" json:"bulk_id"`
 	CreatedBy            pgtype.UUID `db:"created_by" json:"created_by"`
+	SentDateStatus       string      `db:"sent_date_status" json:"sent_date_status"`
 }
 
 func (q *Queries) CreateNotificationLog(ctx context.Context, arg CreateNotificationLogParams) (HrmsNotificationLog, error) {
@@ -164,6 +165,7 @@ func (q *Queries) CreateNotificationLog(ctx context.Context, arg CreateNotificat
 		arg.IdempotencyKey,
 		arg.BulkID,
 		arg.CreatedBy,
+		arg.SentDateStatus,
 	)
 	var i HrmsNotificationLog
 	err := row.Scan(
