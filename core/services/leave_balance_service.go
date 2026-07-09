@@ -182,15 +182,6 @@ func (s *TenantService) RunLeaveAccrual(ctx context.Context, cmd ports.RunLeaveA
 			}
 			for _, employee := range employees {
 				isProbation := employee.IsOnProbation(asOfDate)
-				if isProbation {
-					leaveType, err := s.leaveTypes.GetLeaveType(txCtx, cmd.TenantID, rule.LeaveTypeID)
-					if err != nil {
-						return err
-					}
-					if isEarnedLeaveType(leaveType) && (rule.ProbationStatus == nil || *rule.ProbationStatus != domain.LeaveProbationOnly) {
-						continue
-					}
-				}
 				joiningDate := asOfDate
 				if employee.JoiningDate != nil {
 					joiningDate = *employee.JoiningDate
@@ -362,7 +353,11 @@ func cappedAccrualDays(days float64, rule *domain.LeavePolicyTemplateRule, balan
 		}
 	}
 	if rule.MaxBalance != nil && *rule.MaxBalance >= 0 {
-		remaining := *rule.MaxBalance - balance.TotalDays
+		usedLimitBase := balance.TotalDays
+		if rule.LapseUnutilized {
+			usedLimitBase = balance.BalanceDays + balance.PendingDays
+		}
+		remaining := *rule.MaxBalance - usedLimitBase
 		if remaining < creditDays {
 			creditDays = remaining
 		}

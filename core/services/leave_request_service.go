@@ -77,9 +77,6 @@ func (s *TenantService) PreviewLeave(ctx context.Context, cmd ports.ApplyLeaveCo
 		preview.Allowed = false
 		preview.BlockingReasons = append(preview.BlockingReasons, domain.ErrLeaveTypeDisabled.Error())
 	}
-	if employee.IsOnProbation(startDate) && isEarnedLeaveType(leaveType) {
-		preview.Warnings = append(preview.Warnings, domain.ErrLeaveProbationRestricted.Error())
-	}
 	templateRule, err := s.findApplicableLeaveRule(ctx, cmd.TenantID, employee, leaveType, cmd.FYID, startDate)
 	if err != nil {
 		s.logError("resolve preview leave policy rule", err, serviceTenantIDField(cmd.TenantID), serviceStringField("leave_type_id", cmd.LeaveTypeID.String()))
@@ -520,9 +517,6 @@ func (s *TenantService) findApplicableLeaveRule(ctx context.Context, tenantID uu
 			if *rule.ProbationStatus == domain.LeaveProbationConfirmed && isProbation {
 				continue
 			}
-		}
-		if isProbation && isEarnedLeaveType(leaveType) && (rule.ProbationStatus == nil || *rule.ProbationStatus != domain.LeaveProbationOnly) {
-			continue
 		}
 		return rule, nil
 	}
