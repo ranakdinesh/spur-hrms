@@ -686,6 +686,53 @@ func (q *Queries) CreateLeavePolicyTemplateRule(ctx context.Context, arg CreateL
 	return i, err
 }
 
+const createLeaveRequestMessage = `-- name: CreateLeaveRequestMessage :one
+INSERT INTO hrms.leave_request_messages (
+    tenant_id, leave_id, sender_user_id, recipient_user_id, message_type, body, created_by, updated_by
+) VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $7
+)
+RETURNING id, tenant_id, leave_id, sender_user_id, recipient_user_id, message_type, body, inactive, created_at, created_by, updated_at, updated_by
+`
+
+type CreateLeaveRequestMessageParams struct {
+	TenantID        uuid.UUID   `db:"tenant_id" json:"tenant_id"`
+	LeaveID         uuid.UUID   `db:"leave_id" json:"leave_id"`
+	SenderUserID    uuid.UUID   `db:"sender_user_id" json:"sender_user_id"`
+	RecipientUserID pgtype.UUID `db:"recipient_user_id" json:"recipient_user_id"`
+	MessageType     string      `db:"message_type" json:"message_type"`
+	Body            string      `db:"body" json:"body"`
+	CreatedBy       pgtype.UUID `db:"created_by" json:"created_by"`
+}
+
+func (q *Queries) CreateLeaveRequestMessage(ctx context.Context, arg CreateLeaveRequestMessageParams) (HrmsLeaveRequestMessage, error) {
+	row := q.db.QueryRow(ctx, createLeaveRequestMessage,
+		arg.TenantID,
+		arg.LeaveID,
+		arg.SenderUserID,
+		arg.RecipientUserID,
+		arg.MessageType,
+		arg.Body,
+		arg.CreatedBy,
+	)
+	var i HrmsLeaveRequestMessage
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.LeaveID,
+		&i.SenderUserID,
+		&i.RecipientUserID,
+		&i.MessageType,
+		&i.Body,
+		&i.Inactive,
+		&i.CreatedAt,
+		&i.CreatedBy,
+		&i.UpdatedAt,
+		&i.UpdatedBy,
+	)
+	return i, err
+}
+
 const createLeaveType = `-- name: CreateLeaveType :one
 INSERT INTO hrms.leave_types (
     tenant_id,
@@ -2279,6 +2326,52 @@ func (q *Queries) ListLeaveReportRows(ctx context.Context, arg ListLeaveReportRo
 			&i.AppliedDate,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLeaveRequestMessages = `-- name: ListLeaveRequestMessages :many
+SELECT id, tenant_id, leave_id, sender_user_id, recipient_user_id, message_type, body, inactive, created_at, created_by, updated_at, updated_by FROM hrms.leave_request_messages
+WHERE tenant_id = $1
+  AND leave_id = $2
+  AND NOT inactive
+ORDER BY created_at ASC
+`
+
+type ListLeaveRequestMessagesParams struct {
+	TenantID uuid.UUID `db:"tenant_id" json:"tenant_id"`
+	LeaveID  uuid.UUID `db:"leave_id" json:"leave_id"`
+}
+
+func (q *Queries) ListLeaveRequestMessages(ctx context.Context, arg ListLeaveRequestMessagesParams) ([]HrmsLeaveRequestMessage, error) {
+	rows, err := q.db.Query(ctx, listLeaveRequestMessages, arg.TenantID, arg.LeaveID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []HrmsLeaveRequestMessage
+	for rows.Next() {
+		var i HrmsLeaveRequestMessage
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.LeaveID,
+			&i.SenderUserID,
+			&i.RecipientUserID,
+			&i.MessageType,
+			&i.Body,
+			&i.Inactive,
+			&i.CreatedAt,
+			&i.CreatedBy,
+			&i.UpdatedAt,
+			&i.UpdatedBy,
 		); err != nil {
 			return nil, err
 		}

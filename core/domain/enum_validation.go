@@ -32,7 +32,7 @@ func ValidateAllocationType(value string) (string, error) {
 }
 
 func ValidateNotificationCode(value string) (string, error) {
-	return validateLowerEnum(value, NotifLeaveApplied, NotifLeaveApproved, NotifLeaveRejected, NotifCompanyPolicy, NotifGeneralNotif, NotifUserCelebration)
+	return validateLowerEnum(value, NotifLeaveApplied, NotifLeaveApproved, NotifLeaveClarify, NotifLeaveRejected, NotifCompanyPolicy, NotifGeneralNotif, NotifUserCelebration)
 }
 
 func ValidateNotificationChannel(value string) (string, error) {
@@ -44,7 +44,7 @@ func ValidateNotificationStatus(value string) (string, error) {
 }
 
 func ValidateReferenceTable(value string) (string, error) {
-	return validateLowerEnum(value, RefTableUserLeaves, RefTableCompanyPolicy, RefTableUserCelebration, RefTableHoliday)
+	return validateLowerEnum(value, RefTableUserLeaves, RefTableLeaveMessages, RefTableCompanyPolicy, RefTableUserCelebration, RefTableHoliday)
 }
 
 func ValidateTransactionType(value string) (string, error) {

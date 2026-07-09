@@ -575,6 +575,21 @@ INSERT INTO hrms.leave_approvals (
 )
 RETURNING *;
 
+-- name: CreateLeaveRequestMessage :one
+INSERT INTO hrms.leave_request_messages (
+    tenant_id, leave_id, sender_user_id, recipient_user_id, message_type, body, created_by, updated_by
+) VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $7
+)
+RETURNING *;
+
+-- name: ListLeaveRequestMessages :many
+SELECT * FROM hrms.leave_request_messages
+WHERE tenant_id = $1
+  AND leave_id = $2
+  AND NOT inactive
+ORDER BY created_at ASC;
+
 -- name: ListOverlappingLeaves :many
 SELECT * FROM hrms.leaves
 WHERE tenant_id = $1

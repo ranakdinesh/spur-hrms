@@ -12,6 +12,8 @@ var (
 	ErrInvalidLeaveUser         = errors.New("leave user_id is required")
 	ErrInvalidLeaveType         = errors.New("leave_type_id is required")
 	ErrInvalidLeaveDays         = errors.New("leave days must be greater than zero")
+	ErrInvalidLeaveMessage      = errors.New("leave message is required")
+	ErrInvalidLeaveMessageType  = errors.New("leave message type is invalid")
 	ErrLeaveBalanceInsufficient = errors.New("insufficient leave balance")
 	ErrLeaveOverlap             = errors.New("leave overlaps an existing request")
 	ErrLeaveDatesOutsideFY      = errors.New("leave dates must be within the selected financial year")
@@ -20,6 +22,13 @@ var (
 	ErrLeaveHalfDayNotAllowed   = errors.New("half-day leave is not allowed for this policy")
 	ErrLeaveProbationRestricted = errors.New("earned leave is not available during probation")
 	ErrLeaveNotFound            = errors.New("leave not found")
+	ErrLeaveMessageUnauthorized = errors.New("user is not allowed to access this leave conversation")
+)
+
+const (
+	LeaveMessageClarificationRequest = "clarification_request"
+	LeaveMessageEmployeeReply        = "employee_reply"
+	LeaveMessageComment              = "comment"
 )
 
 type Leave struct {
@@ -70,6 +79,21 @@ type LeaveApplication struct {
 	Leave    *Leave         `json:"leave"`
 	Approval *LeaveApproval `json:"approval"`
 	Balance  *LeaveBalance  `json:"balance"`
+}
+
+type LeaveRequestMessage struct {
+	ID              uuid.UUID  `json:"id"`
+	TenantID        uuid.UUID  `json:"tenant_id"`
+	LeaveID         uuid.UUID  `json:"leave_id"`
+	SenderUserID    uuid.UUID  `json:"sender_user_id"`
+	RecipientUserID *uuid.UUID `json:"recipient_user_id,omitempty"`
+	MessageType     string     `json:"message_type"`
+	Body            string     `json:"body"`
+	Inactive        bool       `json:"inactive"`
+	CreatedAt       time.Time  `json:"created_at"`
+	CreatedBy       *uuid.UUID `json:"created_by,omitempty"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+	UpdatedBy       *uuid.UUID `json:"updated_by,omitempty"`
 }
 
 type LeaveReportFilter struct {

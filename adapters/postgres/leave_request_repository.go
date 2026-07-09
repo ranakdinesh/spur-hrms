@@ -43,6 +43,30 @@ func (s *Store) CreateLeaveApproval(ctx context.Context, item *domain.LeaveAppro
 	return mapLeaveApproval(row), nil
 }
 
+func (s *Store) CreateLeaveRequestMessage(ctx context.Context, item *domain.LeaveRequestMessage, actorID *uuid.UUID) (*domain.LeaveRequestMessage, error) {
+	row, err := s.getQueries(ctx).CreateLeaveRequestMessage(ctx, sqlc.CreateLeaveRequestMessageParams{
+		TenantID:        item.TenantID,
+		LeaveID:         item.LeaveID,
+		SenderUserID:    item.SenderUserID,
+		RecipientUserID: uuidFromPtr(item.RecipientUserID),
+		MessageType:     item.MessageType,
+		Body:            item.Body,
+		CreatedBy:       uuidFromPtr(actorID),
+	})
+	if err != nil {
+		return nil, s.logDBError(ctx, "create leave request message", err, tenantIDField(item.TenantID), stringField("leave_id", item.LeaveID.String()))
+	}
+	return mapLeaveRequestMessage(row), nil
+}
+
+func (s *Store) ListLeaveRequestMessages(ctx context.Context, tenantID uuid.UUID, leaveID uuid.UUID) ([]*domain.LeaveRequestMessage, error) {
+	rows, err := s.getQueries(ctx).ListLeaveRequestMessages(ctx, sqlc.ListLeaveRequestMessagesParams{TenantID: tenantID, LeaveID: leaveID})
+	if err != nil {
+		return nil, s.logDBError(ctx, "list leave request messages", err, tenantIDField(tenantID), stringField("leave_id", leaveID.String()))
+	}
+	return mapLeaveRequestMessages(rows), nil
+}
+
 func (s *Store) ListLeavesByUser(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID) ([]*domain.Leave, error) {
 	rows, err := s.getQueries(ctx).ListLeavesByUser(ctx, sqlc.ListLeavesByUserParams{TenantID: tenantID, UserID: userID})
 	if err != nil {

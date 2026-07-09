@@ -69,6 +69,31 @@ func mapLeaveApprovals(rows []sqlc.HrmsLeaveApproval) []*domain.LeaveApproval {
 	return items
 }
 
+func mapLeaveRequestMessage(row sqlc.HrmsLeaveRequestMessage) *domain.LeaveRequestMessage {
+	return &domain.LeaveRequestMessage{
+		ID:              row.ID,
+		TenantID:        row.TenantID,
+		LeaveID:         row.LeaveID,
+		SenderUserID:    row.SenderUserID,
+		RecipientUserID: ptrFromUUID(row.RecipientUserID),
+		MessageType:     row.MessageType,
+		Body:            row.Body,
+		Inactive:        row.Inactive,
+		CreatedAt:       timeFromTimestamptz(row.CreatedAt),
+		CreatedBy:       ptrFromUUID(row.CreatedBy),
+		UpdatedAt:       timeFromTimestamptz(row.UpdatedAt),
+		UpdatedBy:       ptrFromUUID(row.UpdatedBy),
+	}
+}
+
+func mapLeaveRequestMessages(rows []sqlc.HrmsLeaveRequestMessage) []*domain.LeaveRequestMessage {
+	items := make([]*domain.LeaveRequestMessage, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, mapLeaveRequestMessage(row))
+	}
+	return items
+}
+
 func mapLeaveReportRow(row sqlc.ListLeaveReportRowsRow) *domain.LeaveReportRow {
 	return &domain.LeaveReportRow{
 		ID:                 row.ID,

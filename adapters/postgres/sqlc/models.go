@@ -2917,6 +2917,21 @@ type HrmsLeavePolicyTemplateRule struct {
 	RequiresApproval          bool               `db:"requires_approval" json:"requires_approval"`
 }
 
+type HrmsLeaveRequestMessage struct {
+	ID              uuid.UUID          `db:"id" json:"id"`
+	TenantID        uuid.UUID          `db:"tenant_id" json:"tenant_id"`
+	LeaveID         uuid.UUID          `db:"leave_id" json:"leave_id"`
+	SenderUserID    uuid.UUID          `db:"sender_user_id" json:"sender_user_id"`
+	RecipientUserID pgtype.UUID        `db:"recipient_user_id" json:"recipient_user_id"`
+	MessageType     string             `db:"message_type" json:"message_type"`
+	Body            string             `db:"body" json:"body"`
+	Inactive        bool               `db:"inactive" json:"inactive"`
+	CreatedAt       pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	CreatedBy       pgtype.UUID        `db:"created_by" json:"created_by"`
+	UpdatedAt       pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	UpdatedBy       pgtype.UUID        `db:"updated_by" json:"updated_by"`
+}
+
 type HrmsLeaveType struct {
 	ID                   uuid.UUID          `db:"id" json:"id"`
 	TenantID             uuid.UUID          `db:"tenant_id" json:"tenant_id"`

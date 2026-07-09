@@ -10,6 +10,8 @@ import (
 type LeaveRequestRepo interface {
 	CreateLeave(ctx context.Context, item *domain.Leave, actorID *uuid.UUID) (*domain.Leave, error)
 	CreateLeaveApproval(ctx context.Context, item *domain.LeaveApproval, actorID *uuid.UUID) (*domain.LeaveApproval, error)
+	CreateLeaveRequestMessage(ctx context.Context, item *domain.LeaveRequestMessage, actorID *uuid.UUID) (*domain.LeaveRequestMessage, error)
+	ListLeaveRequestMessages(ctx context.Context, tenantID uuid.UUID, leaveID uuid.UUID) ([]*domain.LeaveRequestMessage, error)
 	ListLeavesByUser(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID) ([]*domain.Leave, error)
 	ListLeavesByFY(ctx context.Context, tenantID uuid.UUID, fyID uuid.UUID) ([]*domain.Leave, error)
 	ListLeaveReportRows(ctx context.Context, filter domain.LeaveReportFilter) ([]*domain.LeaveReportRow, error)
@@ -30,6 +32,17 @@ type ApplyLeaveCommand struct {
 	Reason       *string    `json:"reason,omitempty"`
 	ApproverID   *uuid.UUID `json:"approver_id,omitempty"`
 	ActorID      *uuid.UUID `json:"-"`
+}
+
+type LeaveRequestMessageCommand struct {
+	TenantID        uuid.UUID  `json:"tenant_id"`
+	LeaveID         uuid.UUID  `json:"leave_id"`
+	SenderUserID    uuid.UUID  `json:"sender_user_id"`
+	RecipientUserID *uuid.UUID `json:"recipient_user_id,omitempty"`
+	MessageType     string     `json:"message_type"`
+	Body            string     `json:"body"`
+	CanManage       bool       `json:"-"`
+	ActorID         *uuid.UUID `json:"-"`
 }
 
 type LeaveNotifier interface {

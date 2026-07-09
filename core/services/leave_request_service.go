@@ -78,8 +78,7 @@ func (s *TenantService) PreviewLeave(ctx context.Context, cmd ports.ApplyLeaveCo
 		preview.BlockingReasons = append(preview.BlockingReasons, domain.ErrLeaveTypeDisabled.Error())
 	}
 	if employee.IsOnProbation(startDate) && isEarnedLeaveType(leaveType) {
-		preview.Allowed = false
-		preview.BlockingReasons = append(preview.BlockingReasons, domain.ErrLeaveProbationRestricted.Error())
+		preview.Warnings = append(preview.Warnings, domain.ErrLeaveProbationRestricted.Error())
 	}
 	templateRule, err := s.findApplicableLeaveRule(ctx, cmd.TenantID, employee, leaveType, cmd.FYID, startDate)
 	if err != nil {
@@ -134,8 +133,7 @@ func (s *TenantService) PreviewLeave(ctx context.Context, cmd ports.ApplyLeaveCo
 					preview.NoticeDays = rule.NoticeDays
 					leadDays := int32(startDate.Sub(time.Now().UTC().Truncate(24*time.Hour)).Hours() / 24)
 					if leadDays < rule.NoticeDays {
-						preview.Allowed = false
-						preview.BlockingReasons = append(preview.BlockingReasons, fmt.Sprintf("This leave requires %d day(s) advance notice.", rule.NoticeDays))
+						preview.Warnings = append(preview.Warnings, fmt.Sprintf("This leave requires %d day(s) advance notice. Your manager can still review the request.", rule.NoticeDays))
 					}
 				}
 				break
@@ -148,8 +146,7 @@ func (s *TenantService) PreviewLeave(ctx context.Context, cmd ports.ApplyLeaveCo
 		return nil, err
 	}
 	if err := validateLeaveRequestAgainstRule(leave, templateRule); err != nil {
-		preview.Allowed = false
-		preview.BlockingReasons = append(preview.BlockingReasons, err.Error())
+		preview.Warnings = append(preview.Warnings, err.Error())
 	}
 	overlaps, err := s.leaveRequests.ListOverlappingLeaves(ctx, cmd.TenantID, cmd.UserID, cmd.StartDate, cmd.EndDate)
 	if err != nil {
@@ -193,8 +190,7 @@ func (s *TenantService) PreviewLeave(ctx context.Context, cmd ports.ApplyLeaveCo
 			negativeAllowance = templateRule.MaxNegativeBalance
 		}
 		if preview.BalanceBefore+negativeAllowance < preview.TotalDays {
-			preview.Allowed = false
-			preview.BlockingReasons = append(preview.BlockingReasons, domain.ErrLeaveBalanceInsufficient.Error())
+			preview.Warnings = append(preview.Warnings, domain.ErrLeaveBalanceInsufficient.Error()+". Approval may create leave without pay or negative balance.")
 		}
 	}
 	return preview, nil
@@ -252,11 +248,6 @@ func (s *TenantService) ApplyLeave(ctx context.Context, cmd ports.ApplyLeaveComm
 		s.logError("validate apply leave type enabled", err, serviceTenantIDField(cmd.TenantID), serviceStringField("leave_type_id", cmd.LeaveTypeID.String()))
 		return nil, err
 	}
-	if employee.IsOnProbation(startDate) && isEarnedLeaveType(leaveType) {
-		err := domain.ErrLeaveProbationRestricted
-		s.logError("validate apply leave probation eligibility", err, serviceTenantIDField(cmd.TenantID), serviceStringField("user_id", cmd.UserID.String()), serviceStringField("leave_type_id", cmd.LeaveTypeID.String()))
-		return nil, err
-	}
 	templateRule, err := s.findApplicableLeaveRule(ctx, cmd.TenantID, employee, leaveType, cmd.FYID, startDate)
 	if err != nil {
 		s.logError("resolve apply leave policy rule", err, serviceTenantIDField(cmd.TenantID), serviceStringField("leave_type_id", cmd.LeaveTypeID.String()))
@@ -303,8 +294,7 @@ func (s *TenantService) ApplyLeave(ctx context.Context, cmd ports.ApplyLeaveComm
 		return nil, err
 	}
 	if err := validateLeaveRequestAgainstRule(leave, templateRule); err != nil {
-		s.logError("validate apply leave against template rule", err, serviceTenantIDField(cmd.TenantID), serviceStringField("leave_type_id", cmd.LeaveTypeID.String()))
-		return nil, err
+		s.log.Warn().Err(err).Str("tenant_id", cmd.TenantID.String()).Str("user_id", cmd.UserID.String()).Str("leave_type_id", cmd.LeaveTypeID.String()).Msg("hrms: discretionary leave submission includes policy warning")
 	}
 	overlaps, err := s.leaveRequests.ListOverlappingLeaves(ctx, cmd.TenantID, cmd.UserID, cmd.StartDate, cmd.EndDate)
 	if err != nil {
@@ -346,12 +336,8 @@ func (s *TenantService) ApplyLeave(ctx context.Context, cmd ports.ApplyLeaveComm
 			if err != nil {
 				return err
 			}
-			if templateRule == nil || !templateRule.NegativeBalanceAllowed {
-				if balance.BalanceDays < days {
-					return domain.ErrLeaveBalanceInsufficient
-				}
-			} else if balance.BalanceDays+templateRule.MaxNegativeBalance < days {
-				return domain.ErrLeaveBalanceInsufficient
+			if balance.BalanceDays < days {
+				s.log.Warn().Str("tenant_id", cmd.TenantID.String()).Str("user_id", cmd.UserID.String()).Float64("balance_days", balance.BalanceDays).Float64("request_days", days).Msg("hrms: discretionary leave submission exceeds current balance")
 			}
 			before := *balance
 			updatedBalance, err = s.leaveBalances.UpdateLeaveBalancePending(txCtx, cmd.TenantID, cmd.UserID, cmd.LeaveTypeID, cmd.FYID, days, cmd.ActorID)

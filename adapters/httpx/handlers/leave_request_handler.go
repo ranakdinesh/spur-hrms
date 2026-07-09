@@ -29,6 +29,13 @@ func (h *Handler) ListLeaves(w http.ResponseWriter, r *http.Request) {
 	h.listLeavesForTenant(w, r, tenantID, "list leaves")
 }
 
+func (h *Handler) GetLeave(w http.ResponseWriter, r *http.Request) {
+	tenantID, leaveID, ok := h.leaveRequestIDs(w, r, "get leave")
+	if ok {
+		h.getLeaveForTenant(w, r, tenantID, leaveID, "get leave")
+	}
+}
+
 func (h *Handler) PreviewLeave(w http.ResponseWriter, r *http.Request) {
 	tenantID, err := h.tenantIDFromRequest(r)
 	if err != nil {
@@ -36,6 +43,20 @@ func (h *Handler) PreviewLeave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.previewLeaveForTenant(w, r, tenantID, "preview leave")
+}
+
+func (h *Handler) ListLeaveMessages(w http.ResponseWriter, r *http.Request) {
+	tenantID, leaveID, ok := h.leaveRequestIDs(w, r, "list leave messages")
+	if ok {
+		h.listLeaveMessagesForTenant(w, r, tenantID, leaveID, "list leave messages")
+	}
+}
+
+func (h *Handler) CreateLeaveMessage(w http.ResponseWriter, r *http.Request) {
+	tenantID, leaveID, ok := h.leaveRequestIDs(w, r, "create leave message")
+	if ok {
+		h.createLeaveMessageForTenant(w, r, tenantID, leaveID, "create leave message")
+	}
 }
 
 func (h *Handler) ListLeaveReport(w http.ResponseWriter, r *http.Request) {
@@ -70,10 +91,31 @@ func (h *Handler) ListTenantLeaves(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) GetTenantLeave(w http.ResponseWriter, r *http.Request) {
+	tenantID, leaveID, ok := h.superAdminLeaveRequestIDs(w, r, "get tenant leave")
+	if ok {
+		h.getLeaveForTenant(w, r, tenantID, leaveID, "get tenant leave")
+	}
+}
+
 func (h *Handler) ListTenantLeaveReport(w http.ResponseWriter, r *http.Request) {
 	tenantID, ok := h.superAdminTenantID(w, r, "list tenant leave report")
 	if ok {
 		h.listLeaveReportForTenant(w, r, tenantID, "list tenant leave report")
+	}
+}
+
+func (h *Handler) ListTenantLeaveMessages(w http.ResponseWriter, r *http.Request) {
+	tenantID, leaveID, ok := h.superAdminLeaveRequestIDs(w, r, "list tenant leave messages")
+	if ok {
+		h.listLeaveMessagesForTenant(w, r, tenantID, leaveID, "list tenant leave messages")
+	}
+}
+
+func (h *Handler) CreateTenantLeaveMessage(w http.ResponseWriter, r *http.Request) {
+	tenantID, leaveID, ok := h.superAdminLeaveRequestIDs(w, r, "create tenant leave message")
+	if ok {
+		h.createLeaveMessageForTenant(w, r, tenantID, leaveID, "create tenant leave message")
 	}
 }
 
@@ -142,6 +184,70 @@ func (h *Handler) previewLeaveForTenant(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	respondJSON(w, http.StatusOK, item)
+}
+
+func (h *Handler) getLeaveForTenant(w http.ResponseWriter, r *http.Request, tenantID uuid.UUID, leaveID uuid.UUID, operation string) {
+	actorID := h.actorIDFromRequest(r)
+	if actorID == nil || *actorID == uuid.Nil {
+		h.respondError(w, r, http.StatusUnauthorized, operation, nil, "authenticated user is required")
+		return
+	}
+	if !h.hasAnyPermission(r, permissions.LeaveSelfView, permissions.LeaveSelfApply, permissions.LeavesApprove, permissions.LeaveOperationsView, permissions.LeaveOperationsManage) && !h.isSuperAdminRequest(r) {
+		h.respondError(w, r, http.StatusForbidden, operation, nil, "permission required")
+		return
+	}
+	item, err := h.svc.GetLeave(r.Context(), tenantID, leaveID, *actorID, h.isSuperAdminRequest(r) || h.hasAnyPermission(r, permissions.LeaveOperationsView, permissions.LeaveOperationsManage))
+	if err != nil {
+		h.respondError(w, r, http.StatusForbidden, operation, err, err.Error())
+		return
+	}
+	respondJSON(w, http.StatusOK, item)
+}
+
+func (h *Handler) listLeaveMessagesForTenant(w http.ResponseWriter, r *http.Request, tenantID uuid.UUID, leaveID uuid.UUID, operation string) {
+	actorID := h.actorIDFromRequest(r)
+	if actorID == nil || *actorID == uuid.Nil {
+		h.respondError(w, r, http.StatusUnauthorized, operation, nil, "authenticated user is required")
+		return
+	}
+	if !h.hasAnyPermission(r, permissions.LeaveSelfView, permissions.LeaveSelfApply, permissions.LeavesApprove, permissions.LeaveOperationsView, permissions.LeaveOperationsManage) && !h.isSuperAdminRequest(r) {
+		h.respondError(w, r, http.StatusForbidden, operation, nil, "permission required")
+		return
+	}
+	items, err := h.svc.ListLeaveRequestMessages(r.Context(), tenantID, leaveID, *actorID, h.isSuperAdminRequest(r) || h.hasAnyPermission(r, permissions.LeaveOperationsView, permissions.LeaveOperationsManage))
+	if err != nil {
+		h.respondError(w, r, http.StatusForbidden, operation, err, err.Error())
+		return
+	}
+	respondJSON(w, http.StatusOK, items)
+}
+
+func (h *Handler) createLeaveMessageForTenant(w http.ResponseWriter, r *http.Request, tenantID uuid.UUID, leaveID uuid.UUID, operation string) {
+	actorID := h.actorIDFromRequest(r)
+	if actorID == nil || *actorID == uuid.Nil {
+		h.respondError(w, r, http.StatusUnauthorized, operation, nil, "authenticated user is required")
+		return
+	}
+	if !h.hasAnyPermission(r, permissions.LeaveSelfView, permissions.LeaveSelfApply, permissions.LeavesApprove, permissions.LeaveOperationsView, permissions.LeaveOperationsManage) && !h.isSuperAdminRequest(r) {
+		h.respondError(w, r, http.StatusForbidden, operation, nil, "permission required")
+		return
+	}
+	var cmd ports.LeaveRequestMessageCommand
+	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
+		h.respondError(w, r, http.StatusBadRequest, "decode "+operation+" request", err, "invalid request body")
+		return
+	}
+	cmd.TenantID = tenantID
+	cmd.LeaveID = leaveID
+	cmd.SenderUserID = *actorID
+	cmd.ActorID = actorID
+	cmd.CanManage = h.isSuperAdminRequest(r) || h.hasAnyPermission(r, permissions.LeaveOperationsView, permissions.LeaveOperationsManage)
+	item, err := h.svc.CreateLeaveRequestMessage(r.Context(), cmd)
+	if err != nil {
+		h.respondError(w, r, http.StatusBadRequest, operation, err, err.Error())
+		return
+	}
+	respondJSON(w, http.StatusCreated, item)
 }
 
 func (h *Handler) listLeavesForTenant(w http.ResponseWriter, r *http.Request, tenantID uuid.UUID, operation string) {

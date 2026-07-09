@@ -46,6 +46,7 @@ const (
 const (
 	NotifLeaveApplied    = "leaveapplied"
 	NotifLeaveApproved   = "leaveapproved"
+	NotifLeaveClarify    = "leaveclarification"
 	NotifLeaveRejected   = "leaverejected"
 	NotifCompanyPolicy   = "companypolicy"
 	NotifGeneralNotif    = "generalnotification"
@@ -68,6 +69,7 @@ const (
 
 const (
 	RefTableUserLeaves      = "userleaves"
+	RefTableLeaveMessages   = "leavemessages"
 	RefTableCompanyPolicy   = "companypolicy"
 	RefTableUserCelebration = "usercelebration"
 	RefTableHoliday         = "holiday"
