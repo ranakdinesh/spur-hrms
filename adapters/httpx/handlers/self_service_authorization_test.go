@@ -11,7 +11,7 @@ import (
 	"github.com/ranakdinesh/spur-hrms/core/domain"
 	"github.com/ranakdinesh/spur-hrms/core/ports"
 	"github.com/ranakdinesh/spur-hrms/pkg/permissions"
-	"github.com/ranakdinesh/spur-identity/adapters/http/httputil"
+	"github.com/ranakdinesh/spur-template/pkg/authcontext"
 )
 
 type selfServiceTenantService struct {
@@ -127,9 +127,10 @@ func TestEmployeeCannotListOtherUserLeaves(t *testing.T) {
 		func(context.Context) uuid.UUID { return actorID },
 		func(context.Context) bool { return false },
 		nil,
+		authcontext.Permissions,
 	)
 	request := httptest.NewRequest(http.MethodGet, "/hrms/leaves?user_id="+otherID.String(), nil)
-	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.LeaveSelfView, permissions.LeavesList}))
+	request = request.WithContext(authcontext.SetPermissions(request.Context(), []string{permissions.LeaveSelfView, permissions.LeavesList}))
 	recorder := httptest.NewRecorder()
 
 	handler.ListLeaves(recorder, request)
@@ -152,9 +153,10 @@ func TestEmployeeCanListOwnLeaves(t *testing.T) {
 		func(context.Context) uuid.UUID { return actorID },
 		func(context.Context) bool { return false },
 		nil,
+		authcontext.Permissions,
 	)
 	request := httptest.NewRequest(http.MethodGet, "/hrms/leaves", nil)
-	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.LeaveSelfView}))
+	request = request.WithContext(authcontext.SetPermissions(request.Context(), []string{permissions.LeaveSelfView}))
 	recorder := httptest.NewRecorder()
 
 	handler.ListLeaves(recorder, request)
@@ -178,10 +180,11 @@ func TestEmployeeLeavePreviewDefaultsToActor(t *testing.T) {
 		func(context.Context) uuid.UUID { return actorID },
 		func(context.Context) bool { return false },
 		nil,
+		authcontext.Permissions,
 	)
 	body := []byte(`{"leave_type_id":"` + leaveTypeID.String() + `","start_date":"2026-07-10","end_date":"2026-07-10"}`)
 	request := httptest.NewRequest(http.MethodPost, "/hrms/leaves/preview", bytes.NewReader(body))
-	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.LeaveSelfApply}))
+	request = request.WithContext(authcontext.SetPermissions(request.Context(), []string{permissions.LeaveSelfApply}))
 	recorder := httptest.NewRecorder()
 
 	handler.PreviewLeave(recorder, request)
@@ -206,10 +209,11 @@ func TestEmployeeCannotCancelOtherUserLeave(t *testing.T) {
 		func(context.Context) uuid.UUID { return actorID },
 		func(context.Context) bool { return false },
 		nil,
+		authcontext.Permissions,
 	)
 	body := []byte(`{"user_id":"` + otherID.String() + `"}`)
 	request := httptest.NewRequest(http.MethodPost, "/hrms/leaves/"+leaveID.String()+"/cancel", bytes.NewReader(body))
-	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.LeaveSelfApply, permissions.LeavesApply}))
+	request = request.WithContext(authcontext.SetPermissions(request.Context(), []string{permissions.LeaveSelfApply, permissions.LeavesApply}))
 	recorder := httptest.NewRecorder()
 
 	handler.cancelLeaveForTenant(recorder, request, tenantID, leaveID, "cancel leave")
@@ -233,9 +237,10 @@ func TestEmployeeCanCancelOwnLeave(t *testing.T) {
 		func(context.Context) uuid.UUID { return actorID },
 		func(context.Context) bool { return false },
 		nil,
+		authcontext.Permissions,
 	)
 	request := httptest.NewRequest(http.MethodPost, "/hrms/leaves/"+leaveID.String()+"/cancel", bytes.NewReader([]byte(`{}`)))
-	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.LeaveSelfApply}))
+	request = request.WithContext(authcontext.SetPermissions(request.Context(), []string{permissions.LeaveSelfApply}))
 	recorder := httptest.NewRecorder()
 
 	handler.cancelLeaveForTenant(recorder, request, tenantID, leaveID, "cancel leave")
@@ -259,9 +264,10 @@ func TestEmployeeCannotReadOtherApprovalQueue(t *testing.T) {
 		func(context.Context) uuid.UUID { return actorID },
 		func(context.Context) bool { return false },
 		nil,
+		authcontext.Permissions,
 	)
 	request := httptest.NewRequest(http.MethodGet, "/hrms/leave-approvals?approver_id="+otherID.String(), nil)
-	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.LeavesApprove}))
+	request = request.WithContext(authcontext.SetPermissions(request.Context(), []string{permissions.LeavesApprove}))
 	recorder := httptest.NewRecorder()
 
 	handler.ListLeaveApprovals(recorder, request)
@@ -284,9 +290,10 @@ func TestEmployeeAttendanceStatusDefaultsToActor(t *testing.T) {
 		func(context.Context) uuid.UUID { return actorID },
 		func(context.Context) bool { return false },
 		nil,
+		authcontext.Permissions,
 	)
 	request := httptest.NewRequest(http.MethodGet, "/hrms/attendances/status?date=2026-07-08", nil)
-	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.AttendanceSelfView}))
+	request = request.WithContext(authcontext.SetPermissions(request.Context(), []string{permissions.AttendanceSelfView}))
 	recorder := httptest.NewRecorder()
 
 	handler.ListAttendanceDailyStatuses(recorder, request)
@@ -310,9 +317,10 @@ func TestEmployeeCannotReadOtherAttendanceStatus(t *testing.T) {
 		func(context.Context) uuid.UUID { return actorID },
 		func(context.Context) bool { return false },
 		nil,
+		authcontext.Permissions,
 	)
 	request := httptest.NewRequest(http.MethodGet, "/hrms/attendances/status?date=2026-07-08&user_id="+otherID.String(), nil)
-	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.AttendanceSelfView, permissions.AttendanceList}))
+	request = request.WithContext(authcontext.SetPermissions(request.Context(), []string{permissions.AttendanceSelfView, permissions.AttendanceList}))
 	recorder := httptest.NewRecorder()
 
 	handler.ListAttendanceDailyStatuses(recorder, request)
@@ -335,10 +343,11 @@ func TestEmployeeCanCreateOwnAttendanceSegment(t *testing.T) {
 		func(context.Context) uuid.UUID { return actorID },
 		func(context.Context) bool { return false },
 		nil,
+		authcontext.Permissions,
 	)
 	body := []byte(`{"segment_type":"client_site","action":"arrive","date":"2026-07-08","event_time":"2026-07-08T10:00:00Z"}`)
 	request := httptest.NewRequest(http.MethodPost, "/hrms/attendances/segments", bytes.NewReader(body))
-	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.AttendanceSelfPunch}))
+	request = request.WithContext(authcontext.SetPermissions(request.Context(), []string{permissions.AttendanceSelfPunch}))
 	recorder := httptest.NewRecorder()
 
 	handler.CreateAttendanceWorkdaySegment(recorder, request)
@@ -362,9 +371,10 @@ func TestEmployeeCannotListOtherUserAttendanceSegments(t *testing.T) {
 		func(context.Context) uuid.UUID { return actorID },
 		func(context.Context) bool { return false },
 		nil,
+		authcontext.Permissions,
 	)
 	request := httptest.NewRequest(http.MethodGet, "/hrms/attendances/segments?date=2026-07-08&user_id="+otherID.String(), nil)
-	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.AttendanceSelfView}))
+	request = request.WithContext(authcontext.SetPermissions(request.Context(), []string{permissions.AttendanceSelfView}))
 	recorder := httptest.NewRecorder()
 
 	handler.ListAttendanceWorkdaySegments(recorder, request)
@@ -387,10 +397,11 @@ func TestEmployeeCanCreateOwnCompOffRequest(t *testing.T) {
 		func(context.Context) uuid.UUID { return actorID },
 		func(context.Context) bool { return false },
 		nil,
+		authcontext.Permissions,
 	)
 	body := []byte(`{"work_date":"2026-07-08","worked_minutes":480,"requested_days":1,"reason":"Worked on weekly off"}`)
 	request := httptest.NewRequest(http.MethodPost, "/hrms/comp-off-requests", bytes.NewReader(body))
-	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.LeaveSelfCompOffRequest}))
+	request = request.WithContext(authcontext.SetPermissions(request.Context(), []string{permissions.LeaveSelfCompOffRequest}))
 	recorder := httptest.NewRecorder()
 
 	handler.CreateCompOffRequest(recorder, request)
@@ -414,10 +425,11 @@ func TestEmployeeCannotCreateOtherUserCompOffRequest(t *testing.T) {
 		func(context.Context) uuid.UUID { return actorID },
 		func(context.Context) bool { return false },
 		nil,
+		authcontext.Permissions,
 	)
 	body := []byte(`{"user_id":"` + otherID.String() + `","work_date":"2026-07-08","worked_minutes":480,"requested_days":1}`)
 	request := httptest.NewRequest(http.MethodPost, "/hrms/comp-off-requests", bytes.NewReader(body))
-	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.LeaveSelfCompOffRequest}))
+	request = request.WithContext(authcontext.SetPermissions(request.Context(), []string{permissions.LeaveSelfCompOffRequest}))
 	recorder := httptest.NewRecorder()
 
 	handler.CreateCompOffRequest(recorder, request)
@@ -441,9 +453,10 @@ func TestEmployeeCannotListOtherUserCompOffRequests(t *testing.T) {
 		func(context.Context) uuid.UUID { return actorID },
 		func(context.Context) bool { return false },
 		nil,
+		authcontext.Permissions,
 	)
 	request := httptest.NewRequest(http.MethodGet, "/hrms/comp-off-requests?user_id="+otherID.String(), nil)
-	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.LeaveSelfCompOffRequest}))
+	request = request.WithContext(authcontext.SetPermissions(request.Context(), []string{permissions.LeaveSelfCompOffRequest}))
 	recorder := httptest.NewRecorder()
 
 	handler.ListCompOffRequests(recorder, request)
@@ -467,9 +480,10 @@ func TestEmployeeCannotApproveCompOffRequest(t *testing.T) {
 		func(context.Context) uuid.UUID { return actorID },
 		func(context.Context) bool { return false },
 		nil,
+		authcontext.Permissions,
 	)
 	request := httptest.NewRequest(http.MethodPost, "/hrms/comp-off-requests/"+requestID.String()+"/approve", bytes.NewReader([]byte(`{}`)))
-	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.LeaveSelfCompOffRequest}))
+	request = request.WithContext(authcontext.SetPermissions(request.Context(), []string{permissions.LeaveSelfCompOffRequest}))
 	recorder := httptest.NewRecorder()
 
 	handler.reviewCompOffRequestForTenant(recorder, request, tenantID, requestID, "approve comp-off request", domain.CompOffStatusApproved)
@@ -492,10 +506,11 @@ func TestEmployeeCanCreateOwnOvertimeRequest(t *testing.T) {
 		func(context.Context) uuid.UUID { return actorID },
 		func(context.Context) bool { return false },
 		nil,
+		authcontext.Permissions,
 	)
 	body := []byte(`{"work_date":"2026-07-08","requested_minutes":120,"reason":"Release support"}`)
 	request := httptest.NewRequest(http.MethodPost, "/hrms/overtime-requests", bytes.NewReader(body))
-	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.AttendanceSelfOvertimeRequest}))
+	request = request.WithContext(authcontext.SetPermissions(request.Context(), []string{permissions.AttendanceSelfOvertimeRequest}))
 	recorder := httptest.NewRecorder()
 
 	handler.CreateOvertimeRequest(recorder, request)
@@ -519,10 +534,11 @@ func TestEmployeeCannotCreateOtherUserOvertimeRequest(t *testing.T) {
 		func(context.Context) uuid.UUID { return actorID },
 		func(context.Context) bool { return false },
 		nil,
+		authcontext.Permissions,
 	)
 	body := []byte(`{"user_id":"` + otherID.String() + `","work_date":"2026-07-08","requested_minutes":120}`)
 	request := httptest.NewRequest(http.MethodPost, "/hrms/overtime-requests", bytes.NewReader(body))
-	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.AttendanceSelfOvertimeRequest}))
+	request = request.WithContext(authcontext.SetPermissions(request.Context(), []string{permissions.AttendanceSelfOvertimeRequest}))
 	recorder := httptest.NewRecorder()
 
 	handler.CreateOvertimeRequest(recorder, request)
@@ -546,9 +562,10 @@ func TestEmployeeCannotListOtherUserOvertimeRequests(t *testing.T) {
 		func(context.Context) uuid.UUID { return actorID },
 		func(context.Context) bool { return false },
 		nil,
+		authcontext.Permissions,
 	)
 	request := httptest.NewRequest(http.MethodGet, "/hrms/overtime-requests?user_id="+otherID.String(), nil)
-	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.AttendanceSelfOvertimeRequest}))
+	request = request.WithContext(authcontext.SetPermissions(request.Context(), []string{permissions.AttendanceSelfOvertimeRequest}))
 	recorder := httptest.NewRecorder()
 
 	handler.ListOvertimeRequests(recorder, request)
@@ -572,9 +589,10 @@ func TestEmployeeCannotApproveOvertimeRequest(t *testing.T) {
 		func(context.Context) uuid.UUID { return actorID },
 		func(context.Context) bool { return false },
 		nil,
+		authcontext.Permissions,
 	)
 	request := httptest.NewRequest(http.MethodPost, "/hrms/overtime-requests/"+requestID.String()+"/approve", bytes.NewReader([]byte(`{}`)))
-	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.AttendanceSelfOvertimeRequest}))
+	request = request.WithContext(authcontext.SetPermissions(request.Context(), []string{permissions.AttendanceSelfOvertimeRequest}))
 	recorder := httptest.NewRecorder()
 
 	handler.reviewOvertimeRequestForTenant(recorder, request, tenantID, requestID, "approve overtime request", domain.OvertimeStatusApproved)

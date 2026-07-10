@@ -3,7 +3,7 @@ package permissions
 import (
 	"strings"
 
-	identity "github.com/ranakdinesh/spur-identity"
+	templatemodule "github.com/ranakdinesh/spur-template/pkg/module"
 )
 
 const (
@@ -1260,15 +1260,15 @@ func Keys() []string {
 	return keys
 }
 
-func Manifest() identity.Manifest {
-	perms := make([]identity.ManifestPermission, 0, len(Catalog))
+func Manifest() templatemodule.Manifest {
+	perms := make([]templatemodule.ManifestPermission, 0, len(Catalog))
 	for _, permission := range Catalog {
-		perms = append(perms, identity.ManifestPermission{Slug: permission.Key, Description: permission.Description})
+		perms = append(perms, templatemodule.ManifestPermission{Slug: permission.Key, Description: permission.Description})
 	}
 
-	roleTemplates := make([]identity.ManifestRoleTemplate, 0, len(RoleTemplates))
+	roleTemplates := make([]templatemodule.ManifestRoleTemplate, 0, len(RoleTemplates))
 	for _, template := range RoleTemplates {
-		roleTemplates = append(roleTemplates, identity.ManifestRoleTemplate{
+		roleTemplates = append(roleTemplates, templatemodule.ManifestRoleTemplate{
 			Code:        template.Code,
 			Name:        template.Name,
 			Description: template.Description,
@@ -1276,7 +1276,7 @@ func Manifest() identity.Manifest {
 		})
 	}
 
-	return identity.Manifest{
+	return templatemodule.Manifest{
 		Name:          ModuleName,
 		Code:          ModuleCode,
 		Description:   ModuleDescription,

@@ -13,7 +13,7 @@ import (
 	"github.com/ranakdinesh/spur-hrms/core/domain"
 	"github.com/ranakdinesh/spur-hrms/core/ports"
 	"github.com/ranakdinesh/spur-hrms/pkg/permissions"
-	"github.com/ranakdinesh/spur-identity/adapters/http/httputil"
+	"github.com/ranakdinesh/spur-template/pkg/authcontext"
 )
 
 type policyEngineTenantService struct {
@@ -88,13 +88,14 @@ func TestPolicyEngineListRequiresPolicyViewPermission(t *testing.T) {
 				nil,
 				func(context.Context) bool { return false },
 				nil,
+				authcontext.Permissions,
 			)
 			kind := domain.PolicyKindAttendance
 			if tt.name == "module local leave policy view is allowed" {
 				kind = domain.PolicyKindLeave
 			}
 			request := httptest.NewRequest(http.MethodGet, "/hrms/policy-engine/policy-sets?kind="+kind, nil)
-			request = request.WithContext(httputil.SetPermissions(request.Context(), tt.grants))
+			request = request.WithContext(authcontext.SetPermissions(request.Context(), tt.grants))
 			recorder := httptest.NewRecorder()
 
 			handler.ListPolicyEnginePolicySets(recorder, request)
@@ -144,9 +145,10 @@ func TestPolicyEngineCreateRequiresPolicyManagePermission(t *testing.T) {
 				nil,
 				func(context.Context) bool { return false },
 				nil,
+				authcontext.Permissions,
 			)
 			request := httptest.NewRequest(http.MethodPost, "/hrms/policy-engine/policy-sets", bytes.NewReader(body))
-			request = request.WithContext(httputil.SetPermissions(request.Context(), tt.grants))
+			request = request.WithContext(authcontext.SetPermissions(request.Context(), tt.grants))
 			recorder := httptest.NewRecorder()
 
 			handler.CreatePolicyEnginePolicySet(recorder, request)
@@ -183,9 +185,10 @@ func TestPolicyEnginePreviewUsesTenantAndSubject(t *testing.T) {
 		nil,
 		func(context.Context) bool { return false },
 		nil,
+		authcontext.Permissions,
 	)
 	request := httptest.NewRequest(http.MethodPost, "/hrms/policy-engine/effective-preview", bytes.NewReader(body))
-	request = request.WithContext(httputil.SetPermissions(request.Context(), []string{permissions.LeavePolicyView}))
+	request = request.WithContext(authcontext.SetPermissions(request.Context(), []string{permissions.LeavePolicyView}))
 	recorder := httptest.NewRecorder()
 
 	handler.PreviewPolicyEngineEffectivePolicy(recorder, request)

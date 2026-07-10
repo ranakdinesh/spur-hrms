@@ -11,7 +11,7 @@ import (
 	"github.com/ranakdinesh/spur-hrms/core/domain"
 	"github.com/ranakdinesh/spur-hrms/core/ports"
 	"github.com/ranakdinesh/spur-hrms/pkg/permissions"
-	"github.com/ranakdinesh/spur-identity/adapters/http/httputil"
+	"github.com/ranakdinesh/spur-template/pkg/authcontext"
 )
 
 type employeeListTenantService struct {
@@ -78,9 +78,10 @@ func TestListEmployeesRequiresEmployeesListPermission(t *testing.T) {
 				nil,
 				func(context.Context) bool { return false },
 				nil,
+				authcontext.Permissions,
 			)
 			request := httptest.NewRequest(http.MethodGet, "/hrms/employees", nil)
-			request = request.WithContext(httputil.SetPermissions(request.Context(), tt.grants))
+			request = request.WithContext(authcontext.SetPermissions(request.Context(), tt.grants))
 			recorder := httptest.NewRecorder()
 
 			handler.ListEmployees(recorder, request)
@@ -116,6 +117,7 @@ func TestListEmployeesAllowsSuperAdminSupportContextWithoutTenantPermission(t *t
 		nil,
 		func(context.Context) bool { return true },
 		nil,
+		authcontext.Permissions,
 	)
 	request := httptest.NewRequest(http.MethodGet, "/hrms/employees", nil)
 	recorder := httptest.NewRecorder()

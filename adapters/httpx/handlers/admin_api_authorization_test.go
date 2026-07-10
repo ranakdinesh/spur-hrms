@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ranakdinesh/spur-hrms/pkg/permissions"
-	"github.com/ranakdinesh/spur-identity/adapters/http/httputil"
+	"github.com/ranakdinesh/spur-template/pkg/authcontext"
 )
 
 func TestTenantWideHRPayrollReadsDenyEmployeeSelfServicePermissions(t *testing.T) {
@@ -19,6 +19,7 @@ func TestTenantWideHRPayrollReadsDenyEmployeeSelfServicePermissions(t *testing.T
 		nil,
 		func(context.Context) bool { return false },
 		nil,
+		authcontext.Permissions,
 	)
 	employeeGrants := []string{
 		permissions.ModuleCode + "." + permissions.DashboardEmployeeView,
@@ -46,7 +47,7 @@ func TestTenantWideHRPayrollReadsDenyEmployeeSelfServicePermissions(t *testing.T
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, tt.target, nil)
-			request = request.WithContext(httputil.SetPermissions(request.Context(), employeeGrants))
+			request = request.WithContext(authcontext.SetPermissions(request.Context(), employeeGrants))
 			recorder := httptest.NewRecorder()
 
 			tt.handler(recorder, request)

@@ -19,6 +19,7 @@ func TestHandlerTenantAndActorExtraction(t *testing.T) {
 		func(context.Context) uuid.UUID { return userID },
 		func(context.Context) bool { return true },
 		nil,
+		nil,
 	)
 	request := httptest.NewRequest(http.MethodGet, "/hrms/tenant-profile", nil)
 	gotTenantID, err := handler.tenantIDFromRequest(request)
@@ -43,9 +44,9 @@ func TestHandlerTenantExtractionErrors(t *testing.T) {
 		handler *Handler
 		request *http.Request
 	}{
-		{"nil request", New(nil, func(context.Context) string { return uuid.NewString() }, nil, nil, nil), nil},
-		{"missing resolver", New(nil, nil, nil, nil, nil), httptest.NewRequest(http.MethodGet, "/", nil)},
-		{"invalid uuid", New(nil, func(context.Context) string { return "bad" }, nil, nil, nil), httptest.NewRequest(http.MethodGet, "/", nil)},
+		{"nil request", New(nil, func(context.Context) string { return uuid.NewString() }, nil, nil, nil, nil), nil},
+		{"missing resolver", New(nil, nil, nil, nil, nil, nil), httptest.NewRequest(http.MethodGet, "/", nil)},
+		{"invalid uuid", New(nil, func(context.Context) string { return "bad" }, nil, nil, nil, nil), httptest.NewRequest(http.MethodGet, "/", nil)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -72,7 +73,7 @@ func TestRespondErrorWritesJSON(t *testing.T) {
 }
 
 func TestHandlerRespondErrorLogsAndWrites(t *testing.T) {
-	handler := New(nil, func(context.Context) string { return uuid.NewString() }, nil, nil, nil)
+	handler := New(nil, func(context.Context) string { return uuid.NewString() }, nil, nil, nil, nil)
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, "/hrms/test", nil)
 	handler.respondError(recorder, request, http.StatusInternalServerError, "test operation", errors.New("boom"), "failed")

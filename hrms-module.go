@@ -39,7 +39,7 @@ import (
 	"github.com/ranakdinesh/spur-hrms/internal/logging"
 	"github.com/ranakdinesh/spur-hrms/pkg/permissions"
 	"github.com/ranakdinesh/spur-hrms/sql/migrations"
-	identity "github.com/ranakdinesh/spur-identity"
+	templatemodule "github.com/ranakdinesh/spur-template/pkg/module"
 	"github.com/rs/zerolog"
 )
 
@@ -107,23 +107,24 @@ type Config struct {
 
 // Options is passed by app.go when constructing this module.
 type Options struct {
-	DB                    *pgxpool.Pool
-	Log                   *zerolog.Logger
-	Cfg                   Config
-	TenantIDFromContext   func(context.Context) string
-	UserIDFromContext     func(context.Context) uuid.UUID
-	IsSuperAdmin          func(context.Context) bool
-	RolesFromContext      func(context.Context) []string
-	EmployeeIdentity      ports.EmployeeIdentityPort
-	LegacyPassword        ports.LegacyPasswordMigrationPort
-	PolicyStorage         ports.PolicyFileStorage
-	DocumentStorage       ports.EmployeeDocumentStorage
-	SalarySlipPDF         ports.SalarySlipPDFRenderer
-	SalarySlipStorage     ports.SalarySlipStorage
-	EmployeeLetterPDF     ports.EmployeeLetterPDFRenderer
-	EmployeeLetterStorage ports.EmployeeLetterStorage
-	AgreementPDF          ports.AgreementPDFRenderer
-	AgreementStorage      ports.AgreementStorage
+	DB                     *pgxpool.Pool
+	Log                    *zerolog.Logger
+	Cfg                    Config
+	TenantIDFromContext    func(context.Context) string
+	UserIDFromContext      func(context.Context) uuid.UUID
+	IsSuperAdmin           func(context.Context) bool
+	RolesFromContext       func(context.Context) []string
+	PermissionsFromContext func(context.Context) []string
+	EmployeeIdentity       ports.EmployeeIdentityPort
+	LegacyPassword         ports.LegacyPasswordMigrationPort
+	PolicyStorage          ports.PolicyFileStorage
+	DocumentStorage        ports.EmployeeDocumentStorage
+	SalarySlipPDF          ports.SalarySlipPDFRenderer
+	SalarySlipStorage      ports.SalarySlipStorage
+	EmployeeLetterPDF      ports.EmployeeLetterPDFRenderer
+	EmployeeLetterStorage  ports.EmployeeLetterStorage
+	AgreementPDF           ports.AgreementPDFRenderer
+	AgreementStorage       ports.AgreementStorage
 
 	// MigrationRunner runs this module's SQL migrations.
 	// Provided by the platform: infra.Migrations.Run
@@ -134,7 +135,7 @@ type Options struct {
 type Module struct {
 	// Services exposes this module's service interfaces to other modules.
 	Services *Services
-	Manifest identity.Manifest
+	Manifest templatemodule.Manifest
 
 	handler *handlers.Handler
 }
@@ -239,7 +240,7 @@ func New(ctx context.Context, opt Options) (*Module, error) {
 		serviceOptions = append(serviceOptions, services.WithAgreementStorage(tenantStorage))
 	}
 	svc := services.NewTenantService(store, log, serviceOptions...)
-	h := handlers.New(svc, opt.TenantIDFromContext, opt.UserIDFromContext, opt.IsSuperAdmin, opt.RolesFromContext, log)
+	h := handlers.New(svc, opt.TenantIDFromContext, opt.UserIDFromContext, opt.IsSuperAdmin, opt.RolesFromContext, opt.PermissionsFromContext, log)
 
 	log.Info().Str("module", "hrms").Msg("Hrms module initialised")
 
@@ -370,7 +371,7 @@ func stringPtrOrNil(value string) *string {
 }
 
 // GetManifest returns the identity registration manifest for this module.
-func (m *Module) GetManifest() identity.Manifest {
+func (m *Module) GetManifest() templatemodule.Manifest {
 	if m == nil {
 		return permissions.Manifest()
 	}

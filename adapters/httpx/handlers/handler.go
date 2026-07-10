@@ -13,21 +13,21 @@ import (
 	"github.com/ranakdinesh/spur-hrms/core/ports"
 	"github.com/ranakdinesh/spur-hrms/internal/logging"
 	"github.com/ranakdinesh/spur-hrms/pkg/permissions"
-	"github.com/ranakdinesh/spur-identity/adapters/http/httputil"
 	"github.com/rs/zerolog"
 )
 
 type Handler struct {
-	svc                 ports.TenantService
-	tenantIDFromContext func(context.Context) string
-	userIDFromContext   func(context.Context) uuid.UUID
-	isSuperAdmin        func(context.Context) bool
-	rolesFromContext    func(context.Context) []string
-	log                 *zerolog.Logger
+	svc                    ports.TenantService
+	tenantIDFromContext    func(context.Context) string
+	userIDFromContext      func(context.Context) uuid.UUID
+	isSuperAdmin           func(context.Context) bool
+	rolesFromContext       func(context.Context) []string
+	permissionsFromContext func(context.Context) []string
+	log                    *zerolog.Logger
 }
 
-func New(svc ports.TenantService, tenantIDFromContext func(context.Context) string, userIDFromContext func(context.Context) uuid.UUID, isSuperAdmin func(context.Context) bool, rolesFromContext func(context.Context) []string, log ...*zerolog.Logger) *Handler {
-	return &Handler{svc: svc, tenantIDFromContext: tenantIDFromContext, userIDFromContext: userIDFromContext, isSuperAdmin: isSuperAdmin, rolesFromContext: rolesFromContext, log: logging.Component(logging.First(log...), "http_handler")}
+func New(svc ports.TenantService, tenantIDFromContext func(context.Context) string, userIDFromContext func(context.Context) uuid.UUID, isSuperAdmin func(context.Context) bool, rolesFromContext func(context.Context) []string, permissionsFromContext func(context.Context) []string, log ...*zerolog.Logger) *Handler {
+	return &Handler{svc: svc, tenantIDFromContext: tenantIDFromContext, userIDFromContext: userIDFromContext, isSuperAdmin: isSuperAdmin, rolesFromContext: rolesFromContext, permissionsFromContext: permissionsFromContext, log: logging.Component(logging.First(log...), "http_handler")}
 }
 
 func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
@@ -201,7 +201,10 @@ func (h *Handler) hasPermission(r *http.Request, permission string) bool {
 	}
 	localRequired := strings.TrimPrefix(required, permissions.ModuleCode+".")
 
-	for _, granted := range httputil.GetPermissions(r.Context()) {
+	if h == nil || h.permissionsFromContext == nil {
+		return false
+	}
+	for _, granted := range h.permissionsFromContext(r.Context()) {
 		granted = strings.TrimSpace(granted)
 		if granted == "" {
 			continue
