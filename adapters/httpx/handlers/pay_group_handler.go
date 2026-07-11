@@ -108,6 +108,16 @@ func (h *Handler) GetPayRun(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) GetPayRunCommandCenter(w http.ResponseWriter, r *http.Request) {
+	if !h.requirePermission(w, r, "get pay run command center", permissions.PayRunsView) {
+		return
+	}
+	tenantID, payRunID, ok := h.payRunRequestIDs(w, r, "get pay run command center")
+	if ok {
+		h.getPayRunCommandCenterForTenant(w, r, tenantID, payRunID, "get pay run command center")
+	}
+}
+
 func (h *Handler) AssessPayRunReadiness(w http.ResponseWriter, r *http.Request) {
 	tenantID, payRunID, ok := h.payRunRequestIDs(w, r, "assess pay run")
 	if !ok {
@@ -233,6 +243,13 @@ func (h *Handler) GetTenantPayRun(w http.ResponseWriter, r *http.Request) {
 	tenantID, payRunID, ok := h.tenantPayRunRequestIDs(w, r, "get tenant pay run")
 	if ok {
 		h.getPayRunForTenant(w, r, tenantID, payRunID, "get tenant pay run")
+	}
+}
+
+func (h *Handler) GetTenantPayRunCommandCenter(w http.ResponseWriter, r *http.Request) {
+	tenantID, payRunID, ok := h.tenantPayRunRequestIDs(w, r, "get tenant pay run command center")
+	if ok {
+		h.getPayRunCommandCenterForTenant(w, r, tenantID, payRunID, "get tenant pay run command center")
 	}
 }
 
@@ -381,6 +398,15 @@ func (h *Handler) createPayRunForTenant(w http.ResponseWriter, r *http.Request, 
 
 func (h *Handler) getPayRunForTenant(w http.ResponseWriter, r *http.Request, tenantID uuid.UUID, payRunID uuid.UUID, operation string) {
 	item, err := h.svc.GetPayRun(r.Context(), tenantID, payRunID)
+	if err != nil {
+		h.respondPayGroupError(w, r, operation, err)
+		return
+	}
+	respondJSON(w, http.StatusOK, item)
+}
+
+func (h *Handler) getPayRunCommandCenterForTenant(w http.ResponseWriter, r *http.Request, tenantID uuid.UUID, payRunID uuid.UUID, operation string) {
+	item, err := h.svc.GetPayRunCommandCenter(r.Context(), tenantID, payRunID)
 	if err != nil {
 		h.respondPayGroupError(w, r, operation, err)
 		return

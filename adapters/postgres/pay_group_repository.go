@@ -221,6 +221,89 @@ func (s *Store) ListPayRunEmployees(ctx context.Context, tenantID uuid.UUID, pay
 	return mapPayRunEmployees(rows), nil
 }
 
+func (s *Store) DeletePayRunLedger(ctx context.Context, tenantID uuid.UUID, payRunID uuid.UUID, actorID *uuid.UUID) error {
+	params := sqlc.DeletePayRunLedgerParams{TenantID: tenantID, PayRunID: payRunID, UpdatedBy: uuidFromPtr(actorID)}
+	if err := s.getQueries(ctx).DeletePayRunLedger(ctx, params); err != nil {
+		return s.logDBError(ctx, "delete pay run input ledger", err, tenantIDField(tenantID), stringField("pay_run_id", payRunID.String()))
+	}
+	componentParams := sqlc.DeletePayRunComponentLedgerParams{TenantID: tenantID, PayRunID: payRunID, UpdatedBy: uuidFromPtr(actorID)}
+	if err := s.getQueries(ctx).DeletePayRunComponentLedger(ctx, componentParams); err != nil {
+		return s.logDBError(ctx, "delete pay run component ledger", err, tenantIDField(tenantID), stringField("pay_run_id", payRunID.String()))
+	}
+	return nil
+}
+
+func (s *Store) CreatePayRunInput(ctx context.Context, item *domain.PayRunInput, actorID *uuid.UUID) (*domain.PayRunInput, error) {
+	row, err := s.getQueries(ctx).CreatePayRunInput(ctx, sqlc.CreatePayRunInputParams{
+		TenantID:    item.TenantID,
+		PayRunID:    item.PayRunID,
+		UserID:      item.UserID,
+		InputType:   item.InputType,
+		SourceType:  item.SourceType,
+		SourceID:    uuidFromPtr(item.SourceID),
+		Description: item.Description,
+		Quantity:    numericFromFloatPtr(item.Quantity),
+		Amount:      numericFromFloatPtr(item.Amount),
+		Metadata:    []byte(item.Metadata),
+		CreatedBy:   uuidFromPtr(actorID),
+	})
+	if err != nil {
+		return nil, s.logDBError(ctx, "create pay run input", err, tenantIDField(item.TenantID), stringField("pay_run_id", item.PayRunID.String()), stringField("user_id", item.UserID.String()))
+	}
+	return mapPayRunInputRecord(row), nil
+}
+
+func (s *Store) CreatePayRunComponent(ctx context.Context, item *domain.PayRunComponent, actorID *uuid.UUID) (*domain.PayRunComponent, error) {
+	row, err := s.getQueries(ctx).CreatePayRunComponent(ctx, sqlc.CreatePayRunComponentParams{
+		TenantID:         item.TenantID,
+		PayRunID:         item.PayRunID,
+		UserID:           item.UserID,
+		ComponentType:    item.ComponentType,
+		Code:             item.Code,
+		Name:             item.Name,
+		Amount:           numericFromFloat(item.Amount),
+		SourceInputID:    uuidFromPtr(item.SourceInputID),
+		SalaryTemplateID: uuidFromPtr(item.SalaryTemplateID),
+		Taxable:          item.Taxable,
+		Statutory:        item.Statutory,
+		EmployerCost:     item.EmployerCost,
+		SortOrder:        item.SortOrder,
+		Metadata:         []byte(item.Metadata),
+		CreatedBy:        uuidFromPtr(actorID),
+	})
+	if err != nil {
+		return nil, s.logDBError(ctx, "create pay run component", err, tenantIDField(item.TenantID), stringField("pay_run_id", item.PayRunID.String()), stringField("user_id", item.UserID.String()), stringField("code", item.Code))
+	}
+	return mapPayRunComponentRecord(row), nil
+}
+
+func (s *Store) ListPayRunInputs(ctx context.Context, tenantID uuid.UUID, payRunID uuid.UUID) ([]*domain.PayRunInput, error) {
+	rows, err := s.getQueries(ctx).ListPayRunInputs(ctx, sqlc.ListPayRunInputsParams{TenantID: tenantID, PayRunID: payRunID})
+	if err != nil {
+		return nil, s.logDBError(ctx, "list pay run inputs", err, tenantIDField(tenantID), stringField("pay_run_id", payRunID.String()))
+	}
+	return mapPayRunInputs(rows), nil
+}
+
+func (s *Store) ListPayRunComponents(ctx context.Context, tenantID uuid.UUID, payRunID uuid.UUID) ([]*domain.PayRunComponent, error) {
+	rows, err := s.getQueries(ctx).ListPayRunComponents(ctx, sqlc.ListPayRunComponentsParams{TenantID: tenantID, PayRunID: payRunID})
+	if err != nil {
+		return nil, s.logDBError(ctx, "list pay run components", err, tenantIDField(tenantID), stringField("pay_run_id", payRunID.String()))
+	}
+	return mapPayRunComponents(rows), nil
+}
+
+func (s *Store) GetPayRunLedgerSummary(ctx context.Context, tenantID uuid.UUID, payRunID uuid.UUID) (*domain.PayRunLedgerSummary, error) {
+	row, err := s.getQueries(ctx).GetPayRunLedgerSummary(ctx, sqlc.GetPayRunLedgerSummaryParams{TenantID: tenantID, ID: payRunID})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return &domain.PayRunLedgerSummary{PayRunID: payRunID}, nil
+		}
+		return nil, s.logDBError(ctx, "get pay run ledger summary", err, tenantIDField(tenantID), stringField("pay_run_id", payRunID.String()))
+	}
+	return mapPayRunLedgerSummary(row), nil
+}
+
 func (s *Store) CreatePayRunEvent(ctx context.Context, item *domain.PayRunEvent, actorID *uuid.UUID) (*domain.PayRunEvent, error) {
 	row, err := s.getQueries(ctx).CreatePayRunEvent(ctx, sqlc.CreatePayRunEventParams{
 		TenantID:   item.TenantID,

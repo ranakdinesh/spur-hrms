@@ -208,6 +208,29 @@ func (s *TenantService) GetPayRun(ctx context.Context, tenantID uuid.UUID, id uu
 	return item, s.hydratePayRun(ctx, item)
 }
 
+func (s *TenantService) GetPayRunCommandCenter(ctx context.Context, tenantID uuid.UUID, id uuid.UUID) (*domain.PayRunCommandCenter, error) {
+	run, err := s.GetPayRun(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	summary, err := s.payGroups.GetPayRunLedgerSummary(ctx, tenantID, id)
+	if err != nil {
+		s.logError("get pay run command center summary", err, serviceTenantIDField(tenantID), serviceStringField("pay_run_id", id.String()))
+		return nil, err
+	}
+	inputs, err := s.payGroups.ListPayRunInputs(ctx, tenantID, id)
+	if err != nil {
+		s.logError("get pay run command center inputs", err, serviceTenantIDField(tenantID), serviceStringField("pay_run_id", id.String()))
+		return nil, err
+	}
+	components, err := s.payGroups.ListPayRunComponents(ctx, tenantID, id)
+	if err != nil {
+		s.logError("get pay run command center components", err, serviceTenantIDField(tenantID), serviceStringField("pay_run_id", id.String()))
+		return nil, err
+	}
+	return &domain.PayRunCommandCenter{Run: run, Summary: summary, Inputs: inputs, Components: components}, nil
+}
+
 func (s *TenantService) AssessPayRunReadiness(ctx context.Context, tenantID uuid.UUID, id uuid.UUID, actorID *uuid.UUID) (*domain.PayRun, error) {
 	run, err := s.payGroups.GetPayRun(ctx, tenantID, id)
 	if err != nil {
@@ -250,6 +273,9 @@ func (s *TenantService) AssessPayRunReadiness(ctx context.Context, tenantID uuid
 		if err != nil {
 			return err
 		}
+		if err := s.rebuildPayRunDraftLedger(txCtx, result, employees, actorID); err != nil {
+			return err
+		}
 		return s.createPayRunEvent(txCtx, result, "readiness_assessed", nil, &result.Status, nil, actorID, map[string]any{"ready_count": result.ReadyCount, "blocked_count": result.BlockedCount, "generated_count": result.GeneratedCount})
 	})
 	if err != nil {
@@ -257,6 +283,103 @@ func (s *TenantService) AssessPayRunReadiness(ctx context.Context, tenantID uuid
 		return nil, err
 	}
 	return result, s.hydratePayRun(ctx, result)
+}
+
+func (s *TenantService) rebuildPayRunDraftLedger(ctx context.Context, run *domain.PayRun, employees []*domain.PayRunEmployee, actorID *uuid.UUID) error {
+	if run == nil {
+		return domain.ErrInvalidPayRun
+	}
+	if err := s.payGroups.DeletePayRunLedger(ctx, run.TenantID, run.ID, actorID); err != nil {
+		return err
+	}
+	for _, employee := range employees {
+		if employee.ReadinessStatus != domain.PayRunEmployeeReady && employee.ReadinessStatus != domain.PayRunEmployeeGenerated {
+			continue
+		}
+		calculation, err := s.CalculateEmployeeSalary(ctx, ports.EmployeeSalaryCalculationCommand{TenantID: run.TenantID, UserID: employee.UserID, FYID: run.FYID, Month: int(run.Month), Year: int(run.Year)})
+		if err != nil {
+			return err
+		}
+		salary, err := s.employeeSalaries.GetEmployeeSalary(ctx, run.TenantID, calculation.SalaryID)
+		if err != nil {
+			return err
+		}
+		attendanceInput, err := s.createPayRunInput(ctx, run, employee.UserID, "attendance", "salary_calculation", "Attendance, leave and LOP snapshot", floatPtr(float64(calculation.PresentDays)), floatPtr(calculation.SalaryResult.AbsentDeduction), actorID, map[string]any{
+			"present_days": calculation.PresentDays,
+			"absent_days":  calculation.AbsentDays,
+			"total_days":   calculation.TotalDays,
+			"lwp_days":     calculation.LWPDays,
+		})
+		if err != nil {
+			return err
+		}
+		salaryInput, err := s.createPayRunInput(ctx, run, employee.UserID, "salary", "employee_salary", "Employee salary structure snapshot", nil, floatPtr(calculation.GrossSalary), actorID, map[string]any{
+			"salary_id":   calculation.SalaryID.String(),
+			"template_id": salary.TemplateID.String(),
+		})
+		if err != nil {
+			return err
+		}
+		for _, item := range calculation.SalaryResult.Items {
+			inputID := &salaryInput.ID
+			if item.Code == domain.SalaryCodeLWP {
+				inputID = &attendanceInput.ID
+			}
+			if _, err := s.payGroups.CreatePayRunComponent(ctx, &domain.PayRunComponent{
+				TenantID:         run.TenantID,
+				PayRunID:         run.ID,
+				UserID:           employee.UserID,
+				ComponentType:    item.ItemType,
+				Code:             item.Code,
+				Name:             item.Name,
+				Amount:           item.Amount,
+				SourceInputID:    inputID,
+				SalaryTemplateID: &salary.TemplateID,
+				Taxable:          item.ItemType == domain.SalaryItemEarning,
+				SortOrder:        int32(item.SortOrder),
+				Metadata:         jsonMap(map[string]any{"source": "salary_calculation"}),
+			}, actorID); err != nil {
+				return err
+			}
+		}
+		statutoryItems, err := s.salarySlipStatutoryItems(ctx, run.TenantID, employee.UserID, run.Month, run.Year, calculation.GrossSalary)
+		if err != nil {
+			return err
+		}
+		for _, item := range statutoryItems {
+			if _, err := s.payGroups.CreatePayRunComponent(ctx, &domain.PayRunComponent{
+				TenantID:         run.TenantID,
+				PayRunID:         run.ID,
+				UserID:           employee.UserID,
+				ComponentType:    item.ItemType,
+				Code:             item.Code,
+				Name:             item.Name,
+				Amount:           item.Amount,
+				SourceInputID:    &salaryInput.ID,
+				SalaryTemplateID: &salary.TemplateID,
+				Statutory:        true,
+				SortOrder:        item.SortOrder,
+				Metadata:         jsonMap(map[string]any{"source": "payroll_statutory_rule"}),
+			}, actorID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (s *TenantService) createPayRunInput(ctx context.Context, run *domain.PayRun, userID uuid.UUID, inputType string, sourceType string, description string, quantity *float64, amount *float64, actorID *uuid.UUID, metadata map[string]any) (*domain.PayRunInput, error) {
+	return s.payGroups.CreatePayRunInput(ctx, &domain.PayRunInput{
+		TenantID:    run.TenantID,
+		PayRunID:    run.ID,
+		UserID:      userID,
+		InputType:   inputType,
+		SourceType:  sourceType,
+		Description: description,
+		Quantity:    quantity,
+		Amount:      amount,
+		Metadata:    jsonMap(metadata),
+	}, actorID)
 }
 
 func (s *TenantService) FreezePayRun(ctx context.Context, cmd ports.PayRunActionCommand) (*domain.PayRun, error) {
@@ -529,4 +652,16 @@ func payRunReadinessJSON(employeeCount int32, readyCount int32, blockedCount int
 		"assessed_at":     time.Now().UTC().Format(time.RFC3339),
 	})
 	return raw
+}
+
+func jsonMap(value map[string]any) json.RawMessage {
+	raw, _ := json.Marshal(value)
+	if len(raw) == 0 || string(raw) == "null" {
+		return json.RawMessage(`{}`)
+	}
+	return raw
+}
+
+func floatPtr(value float64) *float64 {
+	return &value
 }

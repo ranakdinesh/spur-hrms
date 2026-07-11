@@ -165,6 +165,10 @@ func mapPayRunEmployee(row sqlc.ListPayRunEmployeesRow) *domain.PayRunEmployee {
 	item.Lastname = ptrFromText(row.Lastname)
 	item.BranchName = ptrFromText(row.BranchName)
 	item.DepartmentName = ptrFromText(row.DepartmentName)
+	item.GrossAmount = floatFromNumeric(row.GrossAmount)
+	item.EarningsAmount = floatFromNumeric(row.EarningsAmount)
+	item.DeductionsAmount = floatFromNumeric(row.DeductionsAmount)
+	item.NetAmount = floatFromNumeric(row.NetAmount)
 	return item
 }
 
@@ -174,6 +178,137 @@ func mapPayRunEmployees(rows []sqlc.ListPayRunEmployeesRow) []*domain.PayRunEmpl
 		items = append(items, mapPayRunEmployee(row))
 	}
 	return items
+}
+
+func mapPayRunInputRecord(row sqlc.HrmsPayRunInput) *domain.PayRunInput {
+	return &domain.PayRunInput{
+		ID:          row.ID,
+		TenantID:    row.TenantID,
+		PayRunID:    row.PayRunID,
+		UserID:      row.UserID,
+		InputType:   row.InputType,
+		SourceType:  row.SourceType,
+		SourceID:    ptrFromUUID(row.SourceID),
+		Description: row.Description,
+		Quantity:    floatPtrFromNumeric(row.Quantity),
+		Amount:      floatPtrFromNumeric(row.Amount),
+		Metadata:    json.RawMessage(row.Metadata),
+		Inactive:    row.Inactive,
+		CreatedAt:   timeFromTimestamptz(row.CreatedAt),
+		CreatedBy:   ptrFromUUID(row.CreatedBy),
+		UpdatedAt:   timeFromTimestamptz(row.UpdatedAt),
+		UpdatedBy:   ptrFromUUID(row.UpdatedBy),
+	}
+}
+
+func mapPayRunInput(row sqlc.ListPayRunInputsRow) *domain.PayRunInput {
+	item := mapPayRunInputRecord(sqlc.HrmsPayRunInput{
+		ID:          row.ID,
+		TenantID:    row.TenantID,
+		PayRunID:    row.PayRunID,
+		UserID:      row.UserID,
+		InputType:   row.InputType,
+		SourceType:  row.SourceType,
+		SourceID:    row.SourceID,
+		Description: row.Description,
+		Quantity:    row.Quantity,
+		Amount:      row.Amount,
+		Metadata:    row.Metadata,
+		Inactive:    row.Inactive,
+		CreatedAt:   row.CreatedAt,
+		CreatedBy:   row.CreatedBy,
+		UpdatedAt:   row.UpdatedAt,
+		UpdatedBy:   row.UpdatedBy,
+	})
+	item.EmployeeCode = ptrFromText(row.EmployeeCode)
+	item.Firstname = row.Firstname
+	item.Lastname = ptrFromText(row.Lastname)
+	return item
+}
+
+func mapPayRunInputs(rows []sqlc.ListPayRunInputsRow) []*domain.PayRunInput {
+	items := make([]*domain.PayRunInput, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, mapPayRunInput(row))
+	}
+	return items
+}
+
+func mapPayRunComponentRecord(row sqlc.HrmsPayRunComponent) *domain.PayRunComponent {
+	return &domain.PayRunComponent{
+		ID:               row.ID,
+		TenantID:         row.TenantID,
+		PayRunID:         row.PayRunID,
+		UserID:           row.UserID,
+		ComponentType:    row.ComponentType,
+		Code:             row.Code,
+		Name:             row.Name,
+		Amount:           floatFromNumeric(row.Amount),
+		SourceInputID:    ptrFromUUID(row.SourceInputID),
+		SalaryTemplateID: ptrFromUUID(row.SalaryTemplateID),
+		Taxable:          row.Taxable,
+		Statutory:        row.Statutory,
+		EmployerCost:     row.EmployerCost,
+		SortOrder:        row.SortOrder,
+		Metadata:         json.RawMessage(row.Metadata),
+		Inactive:         row.Inactive,
+		CreatedAt:        timeFromTimestamptz(row.CreatedAt),
+		CreatedBy:        ptrFromUUID(row.CreatedBy),
+		UpdatedAt:        timeFromTimestamptz(row.UpdatedAt),
+		UpdatedBy:        ptrFromUUID(row.UpdatedBy),
+	}
+}
+
+func mapPayRunComponent(row sqlc.ListPayRunComponentsRow) *domain.PayRunComponent {
+	item := mapPayRunComponentRecord(sqlc.HrmsPayRunComponent{
+		ID:               row.ID,
+		TenantID:         row.TenantID,
+		PayRunID:         row.PayRunID,
+		UserID:           row.UserID,
+		ComponentType:    row.ComponentType,
+		Code:             row.Code,
+		Name:             row.Name,
+		Amount:           row.Amount,
+		SourceInputID:    row.SourceInputID,
+		SalaryTemplateID: row.SalaryTemplateID,
+		Taxable:          row.Taxable,
+		Statutory:        row.Statutory,
+		EmployerCost:     row.EmployerCost,
+		SortOrder:        row.SortOrder,
+		Metadata:         row.Metadata,
+		Inactive:         row.Inactive,
+		CreatedAt:        row.CreatedAt,
+		CreatedBy:        row.CreatedBy,
+		UpdatedAt:        row.UpdatedAt,
+		UpdatedBy:        row.UpdatedBy,
+	})
+	item.EmployeeCode = ptrFromText(row.EmployeeCode)
+	item.Firstname = row.Firstname
+	item.Lastname = ptrFromText(row.Lastname)
+	return item
+}
+
+func mapPayRunComponents(rows []sqlc.ListPayRunComponentsRow) []*domain.PayRunComponent {
+	items := make([]*domain.PayRunComponent, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, mapPayRunComponent(row))
+	}
+	return items
+}
+
+func mapPayRunLedgerSummary(row sqlc.GetPayRunLedgerSummaryRow) *domain.PayRunLedgerSummary {
+	return &domain.PayRunLedgerSummary{
+		PayRunID:           row.PayRunID,
+		EmployeeCount:      row.EmployeeCount,
+		DraftEmployeeCount: row.DraftEmployeeCount,
+		GrossAmount:        floatFromNumeric(row.GrossAmount),
+		TotalEarnings:      floatFromNumeric(row.TotalEarnings),
+		TotalDeductions:    floatFromNumeric(row.TotalDeductions),
+		NetAmount:          floatFromNumeric(row.NetAmount),
+		EmployerCostAmount: floatFromNumeric(row.EmployerCostAmount),
+		InputCount:         row.InputCount,
+		ComponentCount:     row.ComponentCount,
+	}
 }
 
 func mapPayRunEvent(row sqlc.HrmsPayRunEvent) *domain.PayRunEvent {

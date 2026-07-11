@@ -147,6 +147,78 @@ func (q *Queries) CreatePayRun(ctx context.Context, arg CreatePayRunParams) (Hrm
 	return i, err
 }
 
+const createPayRunComponent = `-- name: CreatePayRunComponent :one
+INSERT INTO hrms.pay_run_components (
+    tenant_id, pay_run_id, user_id, component_type, code, name, amount,
+    source_input_id, salary_template_id, taxable, statutory, employer_cost,
+    sort_order, metadata, created_by, updated_by
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $15)
+RETURNING id, tenant_id, pay_run_id, user_id, component_type, code, name, amount, source_input_id, salary_template_id, taxable, statutory, employer_cost, sort_order, metadata, inactive, created_at, created_by, updated_at, updated_by
+`
+
+type CreatePayRunComponentParams struct {
+	TenantID         uuid.UUID      `db:"tenant_id" json:"tenant_id"`
+	PayRunID         uuid.UUID      `db:"pay_run_id" json:"pay_run_id"`
+	UserID           uuid.UUID      `db:"user_id" json:"user_id"`
+	ComponentType    string         `db:"component_type" json:"component_type"`
+	Code             string         `db:"code" json:"code"`
+	Name             string         `db:"name" json:"name"`
+	Amount           pgtype.Numeric `db:"amount" json:"amount"`
+	SourceInputID    pgtype.UUID    `db:"source_input_id" json:"source_input_id"`
+	SalaryTemplateID pgtype.UUID    `db:"salary_template_id" json:"salary_template_id"`
+	Taxable          bool           `db:"taxable" json:"taxable"`
+	Statutory        bool           `db:"statutory" json:"statutory"`
+	EmployerCost     bool           `db:"employer_cost" json:"employer_cost"`
+	SortOrder        int32          `db:"sort_order" json:"sort_order"`
+	Metadata         []byte         `db:"metadata" json:"metadata"`
+	CreatedBy        pgtype.UUID    `db:"created_by" json:"created_by"`
+}
+
+func (q *Queries) CreatePayRunComponent(ctx context.Context, arg CreatePayRunComponentParams) (HrmsPayRunComponent, error) {
+	row := q.db.QueryRow(ctx, createPayRunComponent,
+		arg.TenantID,
+		arg.PayRunID,
+		arg.UserID,
+		arg.ComponentType,
+		arg.Code,
+		arg.Name,
+		arg.Amount,
+		arg.SourceInputID,
+		arg.SalaryTemplateID,
+		arg.Taxable,
+		arg.Statutory,
+		arg.EmployerCost,
+		arg.SortOrder,
+		arg.Metadata,
+		arg.CreatedBy,
+	)
+	var i HrmsPayRunComponent
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.PayRunID,
+		&i.UserID,
+		&i.ComponentType,
+		&i.Code,
+		&i.Name,
+		&i.Amount,
+		&i.SourceInputID,
+		&i.SalaryTemplateID,
+		&i.Taxable,
+		&i.Statutory,
+		&i.EmployerCost,
+		&i.SortOrder,
+		&i.Metadata,
+		&i.Inactive,
+		&i.CreatedAt,
+		&i.CreatedBy,
+		&i.UpdatedAt,
+		&i.UpdatedBy,
+	)
+	return i, err
+}
+
 const createPayRunEvent = `-- name: CreatePayRunEvent :one
 INSERT INTO hrms.pay_run_events (
     tenant_id, pay_run_id, action, from_status, to_status, remarks, metadata, created_by, updated_by
@@ -194,6 +266,99 @@ func (q *Queries) CreatePayRunEvent(ctx context.Context, arg CreatePayRunEventPa
 		&i.UpdatedBy,
 	)
 	return i, err
+}
+
+const createPayRunInput = `-- name: CreatePayRunInput :one
+INSERT INTO hrms.pay_run_inputs (
+    tenant_id, pay_run_id, user_id, input_type, source_type, source_id,
+    description, quantity, amount, metadata, created_by, updated_by
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)
+RETURNING id, tenant_id, pay_run_id, user_id, input_type, source_type, source_id, description, quantity, amount, metadata, inactive, created_at, created_by, updated_at, updated_by
+`
+
+type CreatePayRunInputParams struct {
+	TenantID    uuid.UUID      `db:"tenant_id" json:"tenant_id"`
+	PayRunID    uuid.UUID      `db:"pay_run_id" json:"pay_run_id"`
+	UserID      uuid.UUID      `db:"user_id" json:"user_id"`
+	InputType   string         `db:"input_type" json:"input_type"`
+	SourceType  string         `db:"source_type" json:"source_type"`
+	SourceID    pgtype.UUID    `db:"source_id" json:"source_id"`
+	Description string         `db:"description" json:"description"`
+	Quantity    pgtype.Numeric `db:"quantity" json:"quantity"`
+	Amount      pgtype.Numeric `db:"amount" json:"amount"`
+	Metadata    []byte         `db:"metadata" json:"metadata"`
+	CreatedBy   pgtype.UUID    `db:"created_by" json:"created_by"`
+}
+
+func (q *Queries) CreatePayRunInput(ctx context.Context, arg CreatePayRunInputParams) (HrmsPayRunInput, error) {
+	row := q.db.QueryRow(ctx, createPayRunInput,
+		arg.TenantID,
+		arg.PayRunID,
+		arg.UserID,
+		arg.InputType,
+		arg.SourceType,
+		arg.SourceID,
+		arg.Description,
+		arg.Quantity,
+		arg.Amount,
+		arg.Metadata,
+		arg.CreatedBy,
+	)
+	var i HrmsPayRunInput
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.PayRunID,
+		&i.UserID,
+		&i.InputType,
+		&i.SourceType,
+		&i.SourceID,
+		&i.Description,
+		&i.Quantity,
+		&i.Amount,
+		&i.Metadata,
+		&i.Inactive,
+		&i.CreatedAt,
+		&i.CreatedBy,
+		&i.UpdatedAt,
+		&i.UpdatedBy,
+	)
+	return i, err
+}
+
+const deletePayRunComponentLedger = `-- name: DeletePayRunComponentLedger :exec
+UPDATE hrms.pay_run_components
+SET inactive = TRUE, updated_by = $3, updated_at = NOW()
+WHERE tenant_id = $1 AND pay_run_id = $2 AND NOT inactive
+`
+
+type DeletePayRunComponentLedgerParams struct {
+	TenantID  uuid.UUID   `db:"tenant_id" json:"tenant_id"`
+	PayRunID  uuid.UUID   `db:"pay_run_id" json:"pay_run_id"`
+	UpdatedBy pgtype.UUID `db:"updated_by" json:"updated_by"`
+}
+
+func (q *Queries) DeletePayRunComponentLedger(ctx context.Context, arg DeletePayRunComponentLedgerParams) error {
+	_, err := q.db.Exec(ctx, deletePayRunComponentLedger, arg.TenantID, arg.PayRunID, arg.UpdatedBy)
+	return err
+}
+
+const deletePayRunLedger = `-- name: DeletePayRunLedger :exec
+UPDATE hrms.pay_run_inputs
+SET inactive = TRUE, updated_by = $3, updated_at = NOW()
+WHERE tenant_id = $1 AND pay_run_id = $2 AND NOT inactive
+`
+
+type DeletePayRunLedgerParams struct {
+	TenantID  uuid.UUID   `db:"tenant_id" json:"tenant_id"`
+	PayRunID  uuid.UUID   `db:"pay_run_id" json:"pay_run_id"`
+	UpdatedBy pgtype.UUID `db:"updated_by" json:"updated_by"`
+}
+
+func (q *Queries) DeletePayRunLedger(ctx context.Context, arg DeletePayRunLedgerParams) error {
+	_, err := q.db.Exec(ctx, deletePayRunLedger, arg.TenantID, arg.PayRunID, arg.UpdatedBy)
+	return err
 }
 
 const getPayGroup = `-- name: GetPayGroup :one
@@ -271,6 +436,63 @@ func (q *Queries) GetPayRun(ctx context.Context, arg GetPayRunParams) (HrmsPayRu
 		&i.CreatedBy,
 		&i.UpdatedAt,
 		&i.UpdatedBy,
+	)
+	return i, err
+}
+
+const getPayRunLedgerSummary = `-- name: GetPayRunLedgerSummary :one
+SELECT
+    pr.id AS pay_run_id,
+    pr.employee_count::int AS employee_count,
+    COUNT(DISTINCT prc.user_id)::int AS draft_employee_count,
+    COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'earning'), 0)::numeric AS gross_amount,
+    COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'earning'), 0)::numeric AS total_earnings,
+    COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'deduction'), 0)::numeric AS total_deductions,
+    (
+        COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'earning'), 0)
+        - COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'deduction'), 0)
+    )::numeric AS net_amount,
+    COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'employer_contribution'), 0)::numeric AS employer_cost_amount,
+    (SELECT COUNT(*)::int FROM hrms.pay_run_inputs pri WHERE pri.tenant_id = pr.tenant_id AND pri.pay_run_id = pr.id AND NOT pri.inactive) AS input_count,
+    COUNT(prc.id)::int AS component_count
+FROM hrms.pay_runs pr
+LEFT JOIN hrms.pay_run_components prc ON prc.tenant_id = pr.tenant_id AND prc.pay_run_id = pr.id AND NOT prc.inactive
+WHERE pr.tenant_id = $1 AND pr.id = $2 AND NOT pr.inactive
+GROUP BY pr.id, pr.employee_count
+`
+
+type GetPayRunLedgerSummaryParams struct {
+	TenantID uuid.UUID `db:"tenant_id" json:"tenant_id"`
+	ID       uuid.UUID `db:"id" json:"id"`
+}
+
+type GetPayRunLedgerSummaryRow struct {
+	PayRunID           uuid.UUID      `db:"pay_run_id" json:"pay_run_id"`
+	EmployeeCount      int32          `db:"employee_count" json:"employee_count"`
+	DraftEmployeeCount int32          `db:"draft_employee_count" json:"draft_employee_count"`
+	GrossAmount        pgtype.Numeric `db:"gross_amount" json:"gross_amount"`
+	TotalEarnings      pgtype.Numeric `db:"total_earnings" json:"total_earnings"`
+	TotalDeductions    pgtype.Numeric `db:"total_deductions" json:"total_deductions"`
+	NetAmount          pgtype.Numeric `db:"net_amount" json:"net_amount"`
+	EmployerCostAmount pgtype.Numeric `db:"employer_cost_amount" json:"employer_cost_amount"`
+	InputCount         int32          `db:"input_count" json:"input_count"`
+	ComponentCount     int32          `db:"component_count" json:"component_count"`
+}
+
+func (q *Queries) GetPayRunLedgerSummary(ctx context.Context, arg GetPayRunLedgerSummaryParams) (GetPayRunLedgerSummaryRow, error) {
+	row := q.db.QueryRow(ctx, getPayRunLedgerSummary, arg.TenantID, arg.ID)
+	var i GetPayRunLedgerSummaryRow
+	err := row.Scan(
+		&i.PayRunID,
+		&i.EmployeeCount,
+		&i.DraftEmployeeCount,
+		&i.GrossAmount,
+		&i.TotalEarnings,
+		&i.TotalDeductions,
+		&i.NetAmount,
+		&i.EmployerCostAmount,
+		&i.InputCount,
+		&i.ComponentCount,
 	)
 	return i, err
 }
@@ -471,6 +693,93 @@ func (q *Queries) ListPayGroups(ctx context.Context, tenantID uuid.UUID) ([]Hrms
 	return items, nil
 }
 
+const listPayRunComponents = `-- name: ListPayRunComponents :many
+SELECT
+    prc.id, prc.tenant_id, prc.pay_run_id, prc.user_id, prc.component_type, prc.code, prc.name, prc.amount, prc.source_input_id, prc.salary_template_id, prc.taxable, prc.statutory, prc.employer_cost, prc.sort_order, prc.metadata, prc.inactive, prc.created_at, prc.created_by, prc.updated_at, prc.updated_by,
+    e.employee_code,
+    e.firstname,
+    e.lastname
+FROM hrms.pay_run_components prc
+JOIN hrms.employees e ON e.tenant_id = prc.tenant_id AND e.user_id = prc.user_id AND NOT e.inactive
+WHERE prc.tenant_id = $1 AND prc.pay_run_id = $2 AND NOT prc.inactive
+ORDER BY e.employee_code ASC NULLS LAST, e.firstname ASC, prc.sort_order ASC, prc.created_at ASC
+`
+
+type ListPayRunComponentsParams struct {
+	TenantID uuid.UUID `db:"tenant_id" json:"tenant_id"`
+	PayRunID uuid.UUID `db:"pay_run_id" json:"pay_run_id"`
+}
+
+type ListPayRunComponentsRow struct {
+	ID               uuid.UUID          `db:"id" json:"id"`
+	TenantID         uuid.UUID          `db:"tenant_id" json:"tenant_id"`
+	PayRunID         uuid.UUID          `db:"pay_run_id" json:"pay_run_id"`
+	UserID           uuid.UUID          `db:"user_id" json:"user_id"`
+	ComponentType    string             `db:"component_type" json:"component_type"`
+	Code             string             `db:"code" json:"code"`
+	Name             string             `db:"name" json:"name"`
+	Amount           pgtype.Numeric     `db:"amount" json:"amount"`
+	SourceInputID    pgtype.UUID        `db:"source_input_id" json:"source_input_id"`
+	SalaryTemplateID pgtype.UUID        `db:"salary_template_id" json:"salary_template_id"`
+	Taxable          bool               `db:"taxable" json:"taxable"`
+	Statutory        bool               `db:"statutory" json:"statutory"`
+	EmployerCost     bool               `db:"employer_cost" json:"employer_cost"`
+	SortOrder        int32              `db:"sort_order" json:"sort_order"`
+	Metadata         []byte             `db:"metadata" json:"metadata"`
+	Inactive         bool               `db:"inactive" json:"inactive"`
+	CreatedAt        pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	CreatedBy        pgtype.UUID        `db:"created_by" json:"created_by"`
+	UpdatedAt        pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	UpdatedBy        pgtype.UUID        `db:"updated_by" json:"updated_by"`
+	EmployeeCode     pgtype.Text        `db:"employee_code" json:"employee_code"`
+	Firstname        string             `db:"firstname" json:"firstname"`
+	Lastname         pgtype.Text        `db:"lastname" json:"lastname"`
+}
+
+func (q *Queries) ListPayRunComponents(ctx context.Context, arg ListPayRunComponentsParams) ([]ListPayRunComponentsRow, error) {
+	rows, err := q.db.Query(ctx, listPayRunComponents, arg.TenantID, arg.PayRunID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListPayRunComponentsRow
+	for rows.Next() {
+		var i ListPayRunComponentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.PayRunID,
+			&i.UserID,
+			&i.ComponentType,
+			&i.Code,
+			&i.Name,
+			&i.Amount,
+			&i.SourceInputID,
+			&i.SalaryTemplateID,
+			&i.Taxable,
+			&i.Statutory,
+			&i.EmployerCost,
+			&i.SortOrder,
+			&i.Metadata,
+			&i.Inactive,
+			&i.CreatedAt,
+			&i.CreatedBy,
+			&i.UpdatedAt,
+			&i.UpdatedBy,
+			&i.EmployeeCode,
+			&i.Firstname,
+			&i.Lastname,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPayRunEmployees = `-- name: ListPayRunEmployees :many
 SELECT
     pre.id, pre.tenant_id, pre.pay_run_id, pre.user_id, pre.readiness_status, pre.blocker_reason, pre.salary_slip_id, pre.generated_at, pre.inactive, pre.created_at, pre.created_by, pre.updated_at, pre.updated_by,
@@ -478,12 +787,22 @@ SELECT
     e.firstname,
     e.lastname,
     b.branch_name,
-    d.name AS department_name
+    d.name AS department_name,
+    COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'earning'), 0)::numeric AS earnings_amount,
+    COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'deduction'), 0)::numeric AS deductions_amount,
+    COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'employer_contribution'), 0)::numeric AS employer_cost_amount,
+    COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'earning'), 0)::numeric AS gross_amount,
+    (
+        COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'earning'), 0)
+        - COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'deduction'), 0)
+    )::numeric AS net_amount
 FROM hrms.pay_run_employees pre
 JOIN hrms.employees e ON e.tenant_id = pre.tenant_id AND e.user_id = pre.user_id AND NOT e.inactive
 LEFT JOIN hrms.branches b ON b.tenant_id = e.tenant_id AND b.id = e.branch_id AND NOT b.inactive
 LEFT JOIN hrms.departments d ON d.tenant_id = e.tenant_id AND d.id = e.department_id AND NOT d.inactive
+LEFT JOIN hrms.pay_run_components prc ON prc.tenant_id = pre.tenant_id AND prc.pay_run_id = pre.pay_run_id AND prc.user_id = pre.user_id AND NOT prc.inactive
 WHERE pre.tenant_id = $1 AND pre.pay_run_id = $2 AND NOT pre.inactive
+GROUP BY pre.id, e.employee_code, e.firstname, e.lastname, b.branch_name, d.name
 ORDER BY pre.readiness_status ASC, e.employee_code ASC NULLS LAST, e.firstname ASC
 `
 
@@ -493,24 +812,29 @@ type ListPayRunEmployeesParams struct {
 }
 
 type ListPayRunEmployeesRow struct {
-	ID              uuid.UUID          `db:"id" json:"id"`
-	TenantID        uuid.UUID          `db:"tenant_id" json:"tenant_id"`
-	PayRunID        uuid.UUID          `db:"pay_run_id" json:"pay_run_id"`
-	UserID          uuid.UUID          `db:"user_id" json:"user_id"`
-	ReadinessStatus string             `db:"readiness_status" json:"readiness_status"`
-	BlockerReason   pgtype.Text        `db:"blocker_reason" json:"blocker_reason"`
-	SalarySlipID    pgtype.UUID        `db:"salary_slip_id" json:"salary_slip_id"`
-	GeneratedAt     pgtype.Timestamptz `db:"generated_at" json:"generated_at"`
-	Inactive        bool               `db:"inactive" json:"inactive"`
-	CreatedAt       pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	CreatedBy       pgtype.UUID        `db:"created_by" json:"created_by"`
-	UpdatedAt       pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
-	UpdatedBy       pgtype.UUID        `db:"updated_by" json:"updated_by"`
-	EmployeeCode    pgtype.Text        `db:"employee_code" json:"employee_code"`
-	Firstname       string             `db:"firstname" json:"firstname"`
-	Lastname        pgtype.Text        `db:"lastname" json:"lastname"`
-	BranchName      pgtype.Text        `db:"branch_name" json:"branch_name"`
-	DepartmentName  pgtype.Text        `db:"department_name" json:"department_name"`
+	ID                 uuid.UUID          `db:"id" json:"id"`
+	TenantID           uuid.UUID          `db:"tenant_id" json:"tenant_id"`
+	PayRunID           uuid.UUID          `db:"pay_run_id" json:"pay_run_id"`
+	UserID             uuid.UUID          `db:"user_id" json:"user_id"`
+	ReadinessStatus    string             `db:"readiness_status" json:"readiness_status"`
+	BlockerReason      pgtype.Text        `db:"blocker_reason" json:"blocker_reason"`
+	SalarySlipID       pgtype.UUID        `db:"salary_slip_id" json:"salary_slip_id"`
+	GeneratedAt        pgtype.Timestamptz `db:"generated_at" json:"generated_at"`
+	Inactive           bool               `db:"inactive" json:"inactive"`
+	CreatedAt          pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	CreatedBy          pgtype.UUID        `db:"created_by" json:"created_by"`
+	UpdatedAt          pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	UpdatedBy          pgtype.UUID        `db:"updated_by" json:"updated_by"`
+	EmployeeCode       pgtype.Text        `db:"employee_code" json:"employee_code"`
+	Firstname          string             `db:"firstname" json:"firstname"`
+	Lastname           pgtype.Text        `db:"lastname" json:"lastname"`
+	BranchName         pgtype.Text        `db:"branch_name" json:"branch_name"`
+	DepartmentName     pgtype.Text        `db:"department_name" json:"department_name"`
+	EarningsAmount     pgtype.Numeric     `db:"earnings_amount" json:"earnings_amount"`
+	DeductionsAmount   pgtype.Numeric     `db:"deductions_amount" json:"deductions_amount"`
+	EmployerCostAmount pgtype.Numeric     `db:"employer_cost_amount" json:"employer_cost_amount"`
+	GrossAmount        pgtype.Numeric     `db:"gross_amount" json:"gross_amount"`
+	NetAmount          pgtype.Numeric     `db:"net_amount" json:"net_amount"`
 }
 
 func (q *Queries) ListPayRunEmployees(ctx context.Context, arg ListPayRunEmployeesParams) ([]ListPayRunEmployeesRow, error) {
@@ -541,6 +865,11 @@ func (q *Queries) ListPayRunEmployees(ctx context.Context, arg ListPayRunEmploye
 			&i.Lastname,
 			&i.BranchName,
 			&i.DepartmentName,
+			&i.EarningsAmount,
+			&i.DeductionsAmount,
+			&i.EmployerCostAmount,
+			&i.GrossAmount,
+			&i.NetAmount,
 		); err != nil {
 			return nil, err
 		}
@@ -586,6 +915,85 @@ func (q *Queries) ListPayRunEvents(ctx context.Context, arg ListPayRunEventsPara
 			&i.CreatedBy,
 			&i.UpdatedAt,
 			&i.UpdatedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPayRunInputs = `-- name: ListPayRunInputs :many
+SELECT
+    pri.id, pri.tenant_id, pri.pay_run_id, pri.user_id, pri.input_type, pri.source_type, pri.source_id, pri.description, pri.quantity, pri.amount, pri.metadata, pri.inactive, pri.created_at, pri.created_by, pri.updated_at, pri.updated_by,
+    e.employee_code,
+    e.firstname,
+    e.lastname
+FROM hrms.pay_run_inputs pri
+JOIN hrms.employees e ON e.tenant_id = pri.tenant_id AND e.user_id = pri.user_id AND NOT e.inactive
+WHERE pri.tenant_id = $1 AND pri.pay_run_id = $2 AND NOT pri.inactive
+ORDER BY e.employee_code ASC NULLS LAST, e.firstname ASC, pri.input_type ASC, pri.created_at ASC
+`
+
+type ListPayRunInputsParams struct {
+	TenantID uuid.UUID `db:"tenant_id" json:"tenant_id"`
+	PayRunID uuid.UUID `db:"pay_run_id" json:"pay_run_id"`
+}
+
+type ListPayRunInputsRow struct {
+	ID           uuid.UUID          `db:"id" json:"id"`
+	TenantID     uuid.UUID          `db:"tenant_id" json:"tenant_id"`
+	PayRunID     uuid.UUID          `db:"pay_run_id" json:"pay_run_id"`
+	UserID       uuid.UUID          `db:"user_id" json:"user_id"`
+	InputType    string             `db:"input_type" json:"input_type"`
+	SourceType   string             `db:"source_type" json:"source_type"`
+	SourceID     pgtype.UUID        `db:"source_id" json:"source_id"`
+	Description  string             `db:"description" json:"description"`
+	Quantity     pgtype.Numeric     `db:"quantity" json:"quantity"`
+	Amount       pgtype.Numeric     `db:"amount" json:"amount"`
+	Metadata     []byte             `db:"metadata" json:"metadata"`
+	Inactive     bool               `db:"inactive" json:"inactive"`
+	CreatedAt    pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	CreatedBy    pgtype.UUID        `db:"created_by" json:"created_by"`
+	UpdatedAt    pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	UpdatedBy    pgtype.UUID        `db:"updated_by" json:"updated_by"`
+	EmployeeCode pgtype.Text        `db:"employee_code" json:"employee_code"`
+	Firstname    string             `db:"firstname" json:"firstname"`
+	Lastname     pgtype.Text        `db:"lastname" json:"lastname"`
+}
+
+func (q *Queries) ListPayRunInputs(ctx context.Context, arg ListPayRunInputsParams) ([]ListPayRunInputsRow, error) {
+	rows, err := q.db.Query(ctx, listPayRunInputs, arg.TenantID, arg.PayRunID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListPayRunInputsRow
+	for rows.Next() {
+		var i ListPayRunInputsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.PayRunID,
+			&i.UserID,
+			&i.InputType,
+			&i.SourceType,
+			&i.SourceID,
+			&i.Description,
+			&i.Quantity,
+			&i.Amount,
+			&i.Metadata,
+			&i.Inactive,
+			&i.CreatedAt,
+			&i.CreatedBy,
+			&i.UpdatedAt,
+			&i.UpdatedBy,
+			&i.EmployeeCode,
+			&i.Firstname,
+			&i.Lastname,
 		); err != nil {
 			return nil, err
 		}

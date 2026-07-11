@@ -3396,6 +3396,29 @@ type HrmsPayRun struct {
 	UpdatedBy           pgtype.UUID        `db:"updated_by" json:"updated_by"`
 }
 
+type HrmsPayRunComponent struct {
+	ID               uuid.UUID          `db:"id" json:"id"`
+	TenantID         uuid.UUID          `db:"tenant_id" json:"tenant_id"`
+	PayRunID         uuid.UUID          `db:"pay_run_id" json:"pay_run_id"`
+	UserID           uuid.UUID          `db:"user_id" json:"user_id"`
+	ComponentType    string             `db:"component_type" json:"component_type"`
+	Code             string             `db:"code" json:"code"`
+	Name             string             `db:"name" json:"name"`
+	Amount           pgtype.Numeric     `db:"amount" json:"amount"`
+	SourceInputID    pgtype.UUID        `db:"source_input_id" json:"source_input_id"`
+	SalaryTemplateID pgtype.UUID        `db:"salary_template_id" json:"salary_template_id"`
+	Taxable          bool               `db:"taxable" json:"taxable"`
+	Statutory        bool               `db:"statutory" json:"statutory"`
+	EmployerCost     bool               `db:"employer_cost" json:"employer_cost"`
+	SortOrder        int32              `db:"sort_order" json:"sort_order"`
+	Metadata         []byte             `db:"metadata" json:"metadata"`
+	Inactive         bool               `db:"inactive" json:"inactive"`
+	CreatedAt        pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	CreatedBy        pgtype.UUID        `db:"created_by" json:"created_by"`
+	UpdatedAt        pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	UpdatedBy        pgtype.UUID        `db:"updated_by" json:"updated_by"`
+}
+
 type HrmsPayRunEmployee struct {
 	ID              uuid.UUID          `db:"id" json:"id"`
 	TenantID        uuid.UUID          `db:"tenant_id" json:"tenant_id"`
@@ -3426,6 +3449,25 @@ type HrmsPayRunEvent struct {
 	CreatedBy  pgtype.UUID        `db:"created_by" json:"created_by"`
 	UpdatedAt  pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 	UpdatedBy  pgtype.UUID        `db:"updated_by" json:"updated_by"`
+}
+
+type HrmsPayRunInput struct {
+	ID          uuid.UUID          `db:"id" json:"id"`
+	TenantID    uuid.UUID          `db:"tenant_id" json:"tenant_id"`
+	PayRunID    uuid.UUID          `db:"pay_run_id" json:"pay_run_id"`
+	UserID      uuid.UUID          `db:"user_id" json:"user_id"`
+	InputType   string             `db:"input_type" json:"input_type"`
+	SourceType  string             `db:"source_type" json:"source_type"`
+	SourceID    pgtype.UUID        `db:"source_id" json:"source_id"`
+	Description string             `db:"description" json:"description"`
+	Quantity    pgtype.Numeric     `db:"quantity" json:"quantity"`
+	Amount      pgtype.Numeric     `db:"amount" json:"amount"`
+	Metadata    []byte             `db:"metadata" json:"metadata"`
+	Inactive    bool               `db:"inactive" json:"inactive"`
+	CreatedAt   pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	CreatedBy   pgtype.UUID        `db:"created_by" json:"created_by"`
+	UpdatedAt   pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	UpdatedBy   pgtype.UUID        `db:"updated_by" json:"updated_by"`
 }
 
 type HrmsPayrollImportBatch struct {

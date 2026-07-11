@@ -559,6 +559,7 @@ type TenantService interface {
 	CreatePayRun(ctx context.Context, cmd PayRunCommand) (*domain.PayRun, error)
 	ListPayRuns(ctx context.Context, query PayRunListQuery) ([]*domain.PayRun, error)
 	GetPayRun(ctx context.Context, tenantID uuid.UUID, id uuid.UUID) (*domain.PayRun, error)
+	GetPayRunCommandCenter(ctx context.Context, tenantID uuid.UUID, id uuid.UUID) (*domain.PayRunCommandCenter, error)
 	AssessPayRunReadiness(ctx context.Context, tenantID uuid.UUID, id uuid.UUID, actorID *uuid.UUID) (*domain.PayRun, error)
 	FreezePayRun(ctx context.Context, cmd PayRunActionCommand) (*domain.PayRun, error)
 	GeneratePayRun(ctx context.Context, cmd PayRunActionCommand) (*domain.PayRun, error)

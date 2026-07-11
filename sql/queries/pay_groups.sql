@@ -184,13 +184,92 @@ SELECT
     e.firstname,
     e.lastname,
     b.branch_name,
-    d.name AS department_name
+    d.name AS department_name,
+    COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'earning'), 0)::numeric AS earnings_amount,
+    COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'deduction'), 0)::numeric AS deductions_amount,
+    COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'employer_contribution'), 0)::numeric AS employer_cost_amount,
+    COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'earning'), 0)::numeric AS gross_amount,
+    (
+        COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'earning'), 0)
+        - COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'deduction'), 0)
+    )::numeric AS net_amount
 FROM hrms.pay_run_employees pre
 JOIN hrms.employees e ON e.tenant_id = pre.tenant_id AND e.user_id = pre.user_id AND NOT e.inactive
 LEFT JOIN hrms.branches b ON b.tenant_id = e.tenant_id AND b.id = e.branch_id AND NOT b.inactive
 LEFT JOIN hrms.departments d ON d.tenant_id = e.tenant_id AND d.id = e.department_id AND NOT d.inactive
+LEFT JOIN hrms.pay_run_components prc ON prc.tenant_id = pre.tenant_id AND prc.pay_run_id = pre.pay_run_id AND prc.user_id = pre.user_id AND NOT prc.inactive
 WHERE pre.tenant_id = $1 AND pre.pay_run_id = $2 AND NOT pre.inactive
+GROUP BY pre.id, e.employee_code, e.firstname, e.lastname, b.branch_name, d.name
 ORDER BY pre.readiness_status ASC, e.employee_code ASC NULLS LAST, e.firstname ASC;
+
+-- name: DeletePayRunLedger :exec
+UPDATE hrms.pay_run_inputs
+SET inactive = TRUE, updated_by = $3, updated_at = NOW()
+WHERE tenant_id = $1 AND pay_run_id = $2 AND NOT inactive;
+
+-- name: DeletePayRunComponentLedger :exec
+UPDATE hrms.pay_run_components
+SET inactive = TRUE, updated_by = $3, updated_at = NOW()
+WHERE tenant_id = $1 AND pay_run_id = $2 AND NOT inactive;
+
+-- name: CreatePayRunInput :one
+INSERT INTO hrms.pay_run_inputs (
+    tenant_id, pay_run_id, user_id, input_type, source_type, source_id,
+    description, quantity, amount, metadata, created_by, updated_by
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)
+RETURNING *;
+
+-- name: CreatePayRunComponent :one
+INSERT INTO hrms.pay_run_components (
+    tenant_id, pay_run_id, user_id, component_type, code, name, amount,
+    source_input_id, salary_template_id, taxable, statutory, employer_cost,
+    sort_order, metadata, created_by, updated_by
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $15)
+RETURNING *;
+
+-- name: ListPayRunInputs :many
+SELECT
+    pri.*,
+    e.employee_code,
+    e.firstname,
+    e.lastname
+FROM hrms.pay_run_inputs pri
+JOIN hrms.employees e ON e.tenant_id = pri.tenant_id AND e.user_id = pri.user_id AND NOT e.inactive
+WHERE pri.tenant_id = $1 AND pri.pay_run_id = $2 AND NOT pri.inactive
+ORDER BY e.employee_code ASC NULLS LAST, e.firstname ASC, pri.input_type ASC, pri.created_at ASC;
+
+-- name: ListPayRunComponents :many
+SELECT
+    prc.*,
+    e.employee_code,
+    e.firstname,
+    e.lastname
+FROM hrms.pay_run_components prc
+JOIN hrms.employees e ON e.tenant_id = prc.tenant_id AND e.user_id = prc.user_id AND NOT e.inactive
+WHERE prc.tenant_id = $1 AND prc.pay_run_id = $2 AND NOT prc.inactive
+ORDER BY e.employee_code ASC NULLS LAST, e.firstname ASC, prc.sort_order ASC, prc.created_at ASC;
+
+-- name: GetPayRunLedgerSummary :one
+SELECT
+    pr.id AS pay_run_id,
+    pr.employee_count::int AS employee_count,
+    COUNT(DISTINCT prc.user_id)::int AS draft_employee_count,
+    COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'earning'), 0)::numeric AS gross_amount,
+    COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'earning'), 0)::numeric AS total_earnings,
+    COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'deduction'), 0)::numeric AS total_deductions,
+    (
+        COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'earning'), 0)
+        - COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'deduction'), 0)
+    )::numeric AS net_amount,
+    COALESCE(SUM(prc.amount) FILTER (WHERE prc.component_type = 'employer_contribution'), 0)::numeric AS employer_cost_amount,
+    (SELECT COUNT(*)::int FROM hrms.pay_run_inputs pri WHERE pri.tenant_id = pr.tenant_id AND pri.pay_run_id = pr.id AND NOT pri.inactive) AS input_count,
+    COUNT(prc.id)::int AS component_count
+FROM hrms.pay_runs pr
+LEFT JOIN hrms.pay_run_components prc ON prc.tenant_id = pr.tenant_id AND prc.pay_run_id = pr.id AND NOT prc.inactive
+WHERE pr.tenant_id = $1 AND pr.id = $2 AND NOT pr.inactive
+GROUP BY pr.id, pr.employee_count;
 
 -- name: CreatePayRunEvent :one
 INSERT INTO hrms.pay_run_events (

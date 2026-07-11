@@ -133,24 +133,28 @@ type PayRun struct {
 }
 
 type PayRunEmployee struct {
-	ID              uuid.UUID  `json:"id"`
-	TenantID        uuid.UUID  `json:"tenant_id"`
-	PayRunID        uuid.UUID  `json:"pay_run_id"`
-	UserID          uuid.UUID  `json:"user_id"`
-	ReadinessStatus string     `json:"readiness_status"`
-	BlockerReason   *string    `json:"blocker_reason,omitempty"`
-	SalarySlipID    *uuid.UUID `json:"salary_slip_id,omitempty"`
-	GeneratedAt     *time.Time `json:"generated_at,omitempty"`
-	Inactive        bool       `json:"inactive"`
-	CreatedAt       time.Time  `json:"created_at"`
-	CreatedBy       *uuid.UUID `json:"created_by,omitempty"`
-	UpdatedAt       time.Time  `json:"updated_at"`
-	UpdatedBy       *uuid.UUID `json:"updated_by,omitempty"`
-	EmployeeCode    *string    `json:"employee_code,omitempty"`
-	Firstname       string     `json:"firstname,omitempty"`
-	Lastname        *string    `json:"lastname,omitempty"`
-	BranchName      *string    `json:"branch_name,omitempty"`
-	DepartmentName  *string    `json:"department_name,omitempty"`
+	ID               uuid.UUID  `json:"id"`
+	TenantID         uuid.UUID  `json:"tenant_id"`
+	PayRunID         uuid.UUID  `json:"pay_run_id"`
+	UserID           uuid.UUID  `json:"user_id"`
+	ReadinessStatus  string     `json:"readiness_status"`
+	BlockerReason    *string    `json:"blocker_reason,omitempty"`
+	SalarySlipID     *uuid.UUID `json:"salary_slip_id,omitempty"`
+	GeneratedAt      *time.Time `json:"generated_at,omitempty"`
+	Inactive         bool       `json:"inactive"`
+	CreatedAt        time.Time  `json:"created_at"`
+	CreatedBy        *uuid.UUID `json:"created_by,omitempty"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	UpdatedBy        *uuid.UUID `json:"updated_by,omitempty"`
+	EmployeeCode     *string    `json:"employee_code,omitempty"`
+	Firstname        string     `json:"firstname,omitempty"`
+	Lastname         *string    `json:"lastname,omitempty"`
+	BranchName       *string    `json:"branch_name,omitempty"`
+	DepartmentName   *string    `json:"department_name,omitempty"`
+	GrossAmount      float64    `json:"gross_amount,omitempty"`
+	EarningsAmount   float64    `json:"earnings_amount,omitempty"`
+	DeductionsAmount float64    `json:"deductions_amount,omitempty"`
+	NetAmount        float64    `json:"net_amount,omitempty"`
 }
 
 type PayRunEvent struct {
@@ -167,6 +171,74 @@ type PayRunEvent struct {
 	CreatedBy  *uuid.UUID      `json:"created_by,omitempty"`
 	UpdatedAt  time.Time       `json:"updated_at"`
 	UpdatedBy  *uuid.UUID      `json:"updated_by,omitempty"`
+}
+
+type PayRunInput struct {
+	ID           uuid.UUID       `json:"id"`
+	TenantID     uuid.UUID       `json:"tenant_id"`
+	PayRunID     uuid.UUID       `json:"pay_run_id"`
+	UserID       uuid.UUID       `json:"user_id"`
+	InputType    string          `json:"input_type"`
+	SourceType   string          `json:"source_type"`
+	SourceID     *uuid.UUID      `json:"source_id,omitempty"`
+	Description  string          `json:"description"`
+	Quantity     *float64        `json:"quantity,omitempty"`
+	Amount       *float64        `json:"amount,omitempty"`
+	Metadata     json.RawMessage `json:"metadata,omitempty"`
+	Inactive     bool            `json:"inactive"`
+	CreatedAt    time.Time       `json:"created_at"`
+	CreatedBy    *uuid.UUID      `json:"created_by,omitempty"`
+	UpdatedAt    time.Time       `json:"updated_at"`
+	UpdatedBy    *uuid.UUID      `json:"updated_by,omitempty"`
+	EmployeeCode *string         `json:"employee_code,omitempty"`
+	Firstname    string          `json:"firstname,omitempty"`
+	Lastname     *string         `json:"lastname,omitempty"`
+}
+
+type PayRunComponent struct {
+	ID               uuid.UUID       `json:"id"`
+	TenantID         uuid.UUID       `json:"tenant_id"`
+	PayRunID         uuid.UUID       `json:"pay_run_id"`
+	UserID           uuid.UUID       `json:"user_id"`
+	ComponentType    string          `json:"component_type"`
+	Code             string          `json:"code"`
+	Name             string          `json:"name"`
+	Amount           float64         `json:"amount"`
+	SourceInputID    *uuid.UUID      `json:"source_input_id,omitempty"`
+	SalaryTemplateID *uuid.UUID      `json:"salary_template_id,omitempty"`
+	Taxable          bool            `json:"taxable"`
+	Statutory        bool            `json:"statutory"`
+	EmployerCost     bool            `json:"employer_cost"`
+	SortOrder        int32           `json:"sort_order"`
+	Metadata         json.RawMessage `json:"metadata,omitempty"`
+	Inactive         bool            `json:"inactive"`
+	CreatedAt        time.Time       `json:"created_at"`
+	CreatedBy        *uuid.UUID      `json:"created_by,omitempty"`
+	UpdatedAt        time.Time       `json:"updated_at"`
+	UpdatedBy        *uuid.UUID      `json:"updated_by,omitempty"`
+	EmployeeCode     *string         `json:"employee_code,omitempty"`
+	Firstname        string          `json:"firstname,omitempty"`
+	Lastname         *string         `json:"lastname,omitempty"`
+}
+
+type PayRunLedgerSummary struct {
+	PayRunID           uuid.UUID `json:"pay_run_id"`
+	EmployeeCount      int32     `json:"employee_count"`
+	DraftEmployeeCount int32     `json:"draft_employee_count"`
+	GrossAmount        float64   `json:"gross_amount"`
+	TotalEarnings      float64   `json:"total_earnings"`
+	TotalDeductions    float64   `json:"total_deductions"`
+	NetAmount          float64   `json:"net_amount"`
+	EmployerCostAmount float64   `json:"employer_cost_amount"`
+	InputCount         int32     `json:"input_count"`
+	ComponentCount     int32     `json:"component_count"`
+}
+
+type PayRunCommandCenter struct {
+	Run        *PayRun              `json:"run"`
+	Summary    *PayRunLedgerSummary `json:"summary"`
+	Inputs     []*PayRunInput       `json:"inputs,omitempty"`
+	Components []*PayRunComponent   `json:"components,omitempty"`
 }
 
 func NewPayGroup(item PayGroup) (*PayGroup, error) {

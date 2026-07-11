@@ -25,6 +25,12 @@ type PayGroupRepo interface {
 	DeletePayRun(ctx context.Context, tenantID uuid.UUID, id uuid.UUID, actorID *uuid.UUID) error
 	UpsertPayRunEmployee(ctx context.Context, item *domain.PayRunEmployee, actorID *uuid.UUID) (*domain.PayRunEmployee, error)
 	ListPayRunEmployees(ctx context.Context, tenantID uuid.UUID, payRunID uuid.UUID) ([]*domain.PayRunEmployee, error)
+	DeletePayRunLedger(ctx context.Context, tenantID uuid.UUID, payRunID uuid.UUID, actorID *uuid.UUID) error
+	CreatePayRunInput(ctx context.Context, item *domain.PayRunInput, actorID *uuid.UUID) (*domain.PayRunInput, error)
+	CreatePayRunComponent(ctx context.Context, item *domain.PayRunComponent, actorID *uuid.UUID) (*domain.PayRunComponent, error)
+	ListPayRunInputs(ctx context.Context, tenantID uuid.UUID, payRunID uuid.UUID) ([]*domain.PayRunInput, error)
+	ListPayRunComponents(ctx context.Context, tenantID uuid.UUID, payRunID uuid.UUID) ([]*domain.PayRunComponent, error)
+	GetPayRunLedgerSummary(ctx context.Context, tenantID uuid.UUID, payRunID uuid.UUID) (*domain.PayRunLedgerSummary, error)
 	CreatePayRunEvent(ctx context.Context, item *domain.PayRunEvent, actorID *uuid.UUID) (*domain.PayRunEvent, error)
 	ListPayRunEvents(ctx context.Context, tenantID uuid.UUID, payRunID uuid.UUID) ([]*domain.PayRunEvent, error)
 }
